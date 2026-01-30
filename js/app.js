@@ -10,15 +10,116 @@ const App = {
   contacts: [],
   conversations: [],
   calls: [],
+  enteredPin: '',
 
   // Initialize the app
   init() {
+    // Check if already authenticated
+    if (API.isAuthenticated()) {
+      this.showApp();
+    } else {
+      this.showLogin();
+    }
+    this.bindLogin();
+  },
+
+  // Show login screen
+  showLogin() {
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('app').classList.add('hidden');
+    this.enteredPin = '';
+    this.updatePinDisplay();
+  },
+
+  // Show main app
+  showApp() {
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    this.initApp();
+  },
+
+  // Initialize app after login
+  initApp() {
     this.bindNavigation();
     this.bindDetailViews();
     this.bindSearch();
     this.bindMessageInput();
+    this.bindLogout();
     this.registerServiceWorker();
     this.loadInitialData();
+  },
+
+  // Bind logout button
+  bindLogout() {
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      if (confirm('Are you sure you want to log out?')) {
+        API.logout();
+        this.showLogin();
+      }
+    });
+  },
+
+  // ============================================
+  // Login
+  // ============================================
+
+  bindLogin() {
+    const pinBtns = document.querySelectorAll('.pin-btn[data-digit]');
+    const deleteBtn = document.getElementById('pinDelete');
+
+    pinBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const digit = btn.dataset.digit;
+        if (this.enteredPin.length < 6) {
+          this.enteredPin += digit;
+          this.updatePinDisplay();
+          if (this.enteredPin.length === 6) {
+            this.attemptLogin();
+          }
+        }
+      });
+    });
+
+    deleteBtn.addEventListener('click', () => {
+      if (this.enteredPin.length > 0) {
+        this.enteredPin = this.enteredPin.slice(0, -1);
+        this.updatePinDisplay();
+        this.clearPinError();
+      }
+    });
+  },
+
+  updatePinDisplay() {
+    const dots = document.querySelectorAll('.pin-dot');
+    dots.forEach((dot, i) => {
+      dot.classList.remove('filled', 'error');
+      if (i < this.enteredPin.length) {
+        dot.classList.add('filled');
+      }
+    });
+  },
+
+  async attemptLogin() {
+    const result = await API.authenticate(this.enteredPin);
+    if (result.success) {
+      this.showApp();
+    } else {
+      this.showPinError('Invalid PIN');
+      const dots = document.querySelectorAll('.pin-dot');
+      dots.forEach(dot => dot.classList.add('error'));
+      setTimeout(() => {
+        this.enteredPin = '';
+        this.updatePinDisplay();
+      }, 500);
+    }
+  },
+
+  showPinError(message) {
+    document.getElementById('pinError').textContent = message;
+  },
+
+  clearPinError() {
+    document.getElementById('pinError').textContent = '';
   },
 
   // ============================================

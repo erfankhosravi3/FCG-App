@@ -21,7 +21,47 @@
   <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-  <div id="app">
+  <!-- Login Screen -->
+  <div id="loginScreen" class="login-screen">
+    <div class="login-container">
+      <div class="login-logo">
+        <div class="logo-circle">FCG</div>
+      </div>
+      <h1 class="login-title">Friendly Car Guy</h1>
+      <p class="login-subtitle">Enter your PIN to continue</p>
+      <div class="pin-display">
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+        <span class="pin-dot"></span>
+      </div>
+      <div class="pin-error" id="pinError"></div>
+      <div class="pin-pad">
+        <button class="pin-btn" data-digit="1">1</button>
+        <button class="pin-btn" data-digit="2">2</button>
+        <button class="pin-btn" data-digit="3">3</button>
+        <button class="pin-btn" data-digit="4">4</button>
+        <button class="pin-btn" data-digit="5">5</button>
+        <button class="pin-btn" data-digit="6">6</button>
+        <button class="pin-btn" data-digit="7">7</button>
+        <button class="pin-btn" data-digit="8">8</button>
+        <button class="pin-btn" data-digit="9">9</button>
+        <button class="pin-btn empty"></button>
+        <button class="pin-btn" data-digit="0">0</button>
+        <button class="pin-btn delete" id="pinDelete">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"/>
+            <line x1="18" y1="9" x2="12" y2="15"/>
+            <line x1="12" y1="9" x2="18" y2="15"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="app" class="hidden">
     <!-- Header -->
     <header class="app-header">
       <h1 class="header-title">Messages</h1>
@@ -93,6 +133,16 @@
 
       <!-- Dashboard View -->
       <section class="view" id="dashboardView">
+        <div class="dashboard-header">
+          <h2>Dashboard</h2>
+          <button class="logout-btn" id="logoutBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+        </div>
         <div class="dashboard-stats">
           <div class="stat-card">
             <div class="stat-value" id="statCalls">0</div>

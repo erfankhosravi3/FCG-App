@@ -1,8 +1,11 @@
 // API Configuration and HTTP client for n8n backend
 const API = {
-  // Base URL - will be configured to point to n8n webhooks
-  baseUrl: '', // Set this to your n8n webhook base URL
+  // Base URL for n8n webhooks
+  baseUrl: 'https://erfank.app.n8n.cloud/webhook',
   token: null, // Auth token stored after login
+
+  // PIN for authentication (hashed in production, plain for now)
+  _validPin: '685467',
 
   // Set the API base URL
   setBaseUrl(url) {
@@ -27,6 +30,34 @@ const API = {
   logout() {
     this.token = null;
     localStorage.removeItem('fcg_token');
+    localStorage.removeItem('fcg_token_expiry');
+  },
+
+  // Check if authenticated
+  isAuthenticated() {
+    const token = this.getToken();
+    const expiry = localStorage.getItem('fcg_token_expiry');
+    if (!token || !expiry) return false;
+    // Check if token is expired (7 days)
+    if (Date.now() > parseInt(expiry)) {
+      this.logout();
+      return false;
+    }
+    return true;
+  },
+
+  // Authenticate with PIN
+  async authenticate(pin) {
+    if (pin === this._validPin) {
+      // Generate a simple session token
+      const token = 'fcg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      this.setToken(token);
+      // Set expiry to 7 days from now
+      const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000);
+      localStorage.setItem('fcg_token_expiry', expiry.toString());
+      return { success: true };
+    }
+    return { success: false, error: 'Invalid PIN' };
   },
 
   // Generic fetch wrapper

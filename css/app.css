@@ -308,6 +308,42 @@ body {
 }
 
 /* Dashboard */
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  padding-bottom: 8px;
+}
+
+.dashboard-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.logout-btn {
+  width: 40px;
+  height: 40px;
+  border: none;
+  background: var(--bg-secondary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.logout-btn:active {
+  background: var(--bg-tertiary);
+}
+
+.logout-btn svg {
+  width: 20px;
+  height: 20px;
+  color: var(--text-secondary);
+}
+
 .dashboard-stats {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -713,6 +749,152 @@ body {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Login Screen */
+.login-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  padding-top: var(--safe-area-top);
+  padding-bottom: var(--safe-area-bottom);
+}
+
+.login-screen.hidden {
+  display: none;
+}
+
+.login-container {
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+}
+
+.login-logo {
+  margin-bottom: 24px;
+}
+
+.logo-circle {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 auto;
+}
+
+.login-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.login-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+}
+
+.pin-display {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  transition: all 0.15s;
+}
+
+.pin-dot.filled {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.pin-dot.error {
+  border-color: var(--danger);
+  background: var(--danger);
+  animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.pin-error {
+  height: 20px;
+  font-size: 13px;
+  color: var(--danger);
+  margin-bottom: 24px;
+}
+
+.pin-pad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.pin-btn {
+  width: 72px;
+  height: 72px;
+  border: none;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 28px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.1s, background 0.2s;
+  margin: 0 auto;
+}
+
+.pin-btn:active {
+  transform: scale(0.95);
+  background: var(--bg-tertiary);
+}
+
+.pin-btn.empty {
+  background: transparent;
+  cursor: default;
+}
+
+.pin-btn.empty:active {
+  transform: none;
+}
+
+.pin-btn.delete {
+  background: transparent;
+}
+
+.pin-btn.delete svg {
+  width: 28px;
+  height: 28px;
+}
+
+.pin-btn.delete:active {
+  background: var(--bg-secondary);
 }
 
 /* Utilities */
