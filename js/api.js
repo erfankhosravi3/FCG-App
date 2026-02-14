@@ -2,23 +2,17 @@
 const API = {
   // Base URL for n8n webhooks
   baseUrl: 'https://erfank.app.n8n.cloud/webhook',
-  token: null, // Auth token stored after login
+  token: null,
 
-  // PIN for authentication (hashed in production, plain for now)
-  _validPin: '685467',
+  // ============================================
+  // Token Management
+  // ============================================
 
-  // Set the API base URL
-  setBaseUrl(url) {
-    this.baseUrl = url.replace(/\/$/, ''); // Remove trailing slash
-  },
-
-  // Set auth token
   setToken(token) {
     this.token = token;
     localStorage.setItem('fcg_token', token);
   },
 
-  // Get stored token
   getToken() {
     if (!this.token) {
       this.token = localStorage.getItem('fcg_token');
@@ -26,19 +20,16 @@ const API = {
     return this.token;
   },
 
-  // Clear auth
   logout() {
     this.token = null;
     localStorage.removeItem('fcg_token');
     localStorage.removeItem('fcg_token_expiry');
   },
 
-  // Check if authenticated
   isAuthenticated() {
     const token = this.getToken();
     const expiry = localStorage.getItem('fcg_token_expiry');
     if (!token || !expiry) return false;
-    // Check if token is expired (7 days)
     if (Date.now() > parseInt(expiry)) {
       this.logout();
       return false;
@@ -46,21 +37,38 @@ const API = {
     return true;
   },
 
-  // Authenticate with PIN
+  // ============================================
+  // Authentication — server-side PIN validation
+  // ============================================
+
   async authenticate(pin) {
-    if (pin === this._validPin) {
-      // Generate a simple session token
-      const token = 'fcg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-      this.setToken(token);
-      // Set expiry to 7 days from now
-      const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000);
-      localStorage.setItem('fcg_token_expiry', expiry.toString());
-      return { success: true };
+    try {
+      const response = await fetch(`${this.baseUrl}/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin }),
+      });
+
+      const data = await response.json();
+
+      if (data.success && data.token) {
+        this.setToken(data.token);
+        const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000); // 7 days
+        localStorage.setItem('fcg_token_expiry', expiry.toString());
+        return { success: true, user: data.user };
+      }
+
+      return { success: false, error: data.error || 'Invalid PIN' };
+    } catch (error) {
+      console.error('Auth error:', error);
+      return { success: false, error: 'Connection failed. Check your network.' };
     }
-    return { success: false, error: 'Invalid PIN' };
   },
 
-  // Generic fetch wrapper
+  // ============================================
+  // Generic HTTP Client
+  // ============================================
+
   async request(endpoint, options = {}) {
     const url = `${this.baseUrl}${endpoint}`;
     const token = this.getToken();
@@ -77,24 +85,31 @@ const API = {
     try {
       const response = await fetch(url, config);
 
+      // Handle 401 — token expired or invalid
+      if (response.status === 401) {
+        this.logout();
+        window.dispatchEvent(new Event('fcg:auth-expired'));
+        throw new Error('Session expired. Please log in again.');
+      }
+
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || `HTTP ${response.status}`);
+        throw new Error(error.message || error.error || `HTTP ${response.status}`);
       }
 
       return await response.json();
     } catch (error) {
-      console.error('API Error:', error);
+      if (error.message === 'Session expired. Please log in again.') throw error;
+      if (!navigator.onLine) throw new Error('No internet connection');
+      console.error(`API Error [${options.method || 'GET'} ${endpoint}]:`, error);
       throw error;
     }
   },
 
-  // GET request
   get(endpoint) {
     return this.request(endpoint, { method: 'GET' });
   },
 
-  // POST request
   post(endpoint, data) {
     return this.request(endpoint, {
       method: 'POST',
@@ -102,7 +117,6 @@ const API = {
     });
   },
 
-  // PUT request
   put(endpoint, data) {
     return this.request(endpoint, {
       method: 'PUT',
@@ -110,13 +124,12 @@ const API = {
     });
   },
 
-  // DELETE request
   delete(endpoint) {
     return this.request(endpoint, { method: 'DELETE' });
   },
 
   // ============================================
-  // Contacts API
+  // Contacts (W16, W17)
   // ============================================
 
   async getContacts() {
@@ -144,7 +157,7 @@ const API = {
   },
 
   // ============================================
-  // Messages API
+  // Messages (W18, W19)
   // ============================================
 
   async getConversations() {
@@ -160,7 +173,7 @@ const API = {
   },
 
   // ============================================
-  // Calls API
+  // Calls (W20)
   // ============================================
 
   async getCalls() {
@@ -176,7 +189,7 @@ const API = {
   },
 
   // ============================================
-  // Tasks API
+  // Tasks (W21)
   // ============================================
 
   async getTasks() {
@@ -196,7 +209,7 @@ const API = {
   },
 
   // ============================================
-  // Dashboard / Stats API
+  // Dashboard / Stats (W22)
   // ============================================
 
   async getDashboardStats() {
@@ -205,6 +218,66 @@ const API = {
 
   async getRecentActivity() {
     return this.get('/dashboard/activity');
+  },
+
+  // ============================================
+  // Person Intelligence (W12)
+  // ============================================
+
+  async getPersonIntel(contactId) {
+    return this.post('/person-intel', { personId: contactId });
+  },
+
+  async getPersonIntelByPhone(phone) {
+    return this.post('/person-intel', { phone });
+  },
+
+  // ============================================
+  // Pre-Call Briefing (W12)
+  // ============================================
+
+  async getBriefing(contactId) {
+    return this.post('/briefing/generate', { contactId });
+  },
+
+  // ============================================
+  // Inventory (W23)
+  // ============================================
+
+  async getInventory() {
+    return this.get('/inventory');
+  },
+
+  async getInventoryItem(id) {
+    return this.get(`/inventory/${id}`);
+  },
+
+  async processVin(vin, photos) {
+    return this.post('/vin/process', { vin, photos });
+  },
+
+  async decodeVin(vin) {
+    return this.post('/vin/decode', { vin });
+  },
+
+  // ============================================
+  // Power Dialer (W13, W14)
+  // ============================================
+
+  async startDialerSession(listId) {
+    return this.post('/dialer/start', { listId });
+  },
+
+  async dialNext(sessionId) {
+    return this.post('/dialer/next', { sessionId });
+  },
+
+  async pauseDialer(sessionId) {
+    return this.post('/dialer/pause', { sessionId });
+  },
+
+  async stopDialer(sessionId) {
+    return this.post('/dialer/stop', { sessionId });
   },
 
   // ============================================
@@ -220,5 +293,4 @@ const API = {
   },
 };
 
-// Export for use in other modules
 window.API = API;

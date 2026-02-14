@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Friendly Car Guy</title>
-  <meta name="description" content="Your business phone & CRM">
+  <meta name="description" content="Dealer Sales Acceleration System">
   <meta name="theme-color" content="#0a0a0a">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -64,8 +64,8 @@
   <div id="app" class="hidden">
     <!-- Header -->
     <header class="app-header">
-      <h1 class="header-title">Messages</h1>
-      <button class="header-btn" id="composeBtn" aria-label="New message">
+      <h1 class="header-title">Today</h1>
+      <button class="header-btn" id="composeBtn" aria-label="Add contact">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M12 5v14M5 12h14"/>
         </svg>
@@ -74,8 +74,15 @@
 
     <!-- Main Content Area -->
     <main class="app-content">
+      <!-- Today View (default) -->
+      <section class="view active" id="todayView">
+        <div class="today-list" id="todayList">
+          <div class="loading-state"><div class="spinner"></div></div>
+        </div>
+      </section>
+
       <!-- Messages View -->
-      <section class="view active" id="messagesView">
+      <section class="view" id="messagesView">
         <div class="search-bar">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="11" cy="11" r="8"/>
@@ -83,14 +90,7 @@
           </svg>
           <input type="text" placeholder="Search messages..." id="messageSearch">
         </div>
-        <div class="conversation-list" id="conversationList">
-          <!-- Conversations loaded here -->
-          <div class="empty-state">
-            <div class="empty-icon">💬</div>
-            <p>No messages yet</p>
-            <small>Messages with customers will appear here</small>
-          </div>
-        </div>
+        <div class="conversation-list" id="conversationList"></div>
       </section>
 
       <!-- Calls View -->
@@ -102,14 +102,7 @@
           </svg>
           <input type="text" placeholder="Search calls..." id="callSearch">
         </div>
-        <div class="call-list" id="callList">
-          <!-- Calls loaded here -->
-          <div class="empty-state">
-            <div class="empty-icon">📞</div>
-            <p>No calls yet</p>
-            <small>Your call history will appear here</small>
-          </div>
-        </div>
+        <div class="call-list" id="callList"></div>
       </section>
 
       <!-- Contacts View -->
@@ -121,12 +114,16 @@
           </svg>
           <input type="text" placeholder="Search contacts..." id="contactSearch">
         </div>
-        <div class="contact-list" id="contactList">
-          <!-- Contacts loaded here -->
+        <div class="contact-list" id="contactList"></div>
+      </section>
+
+      <!-- Inventory View -->
+      <section class="view" id="inventoryView">
+        <div class="inventory-grid" id="inventoryGrid">
           <div class="empty-state">
-            <div class="empty-icon">👥</div>
-            <p>No contacts yet</p>
-            <small>Add your first contact to get started</small>
+            <div class="empty-icon">&#128663;</div>
+            <p>No inventory yet</p>
+            <small>Scan a VIN to add your first car</small>
           </div>
         </div>
       </section>
@@ -164,9 +161,7 @@
         <div class="recent-activity">
           <h3>Recent Activity</h3>
           <div class="activity-list" id="activityList">
-            <div class="empty-state">
-              <p>No recent activity</p>
-            </div>
+            <div class="empty-state"><p>No recent activity</p></div>
           </div>
         </div>
       </section>
@@ -174,11 +169,18 @@
 
     <!-- Bottom Navigation -->
     <nav class="app-nav">
-      <button class="nav-item active" data-view="messagesView">
+      <button class="nav-item active" data-view="todayView">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+        <span>Today</span>
+      </button>
+      <button class="nav-item" data-view="messagesView">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
-        <span>Messages</span>
+        <span>Texts</span>
       </button>
       <button class="nav-item" data-view="callsView">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -224,9 +226,7 @@
           </svg>
         </button>
       </header>
-      <div class="messages-container" id="messagesContainer">
-        <!-- Messages loaded here -->
-      </div>
+      <div class="messages-container" id="messagesContainer"></div>
       <div class="message-input">
         <input type="text" placeholder="Type a message..." id="messageInput">
         <button class="send-btn" id="sendBtn">
@@ -257,8 +257,80 @@
           </svg>
         </button>
       </header>
-      <div class="contact-content" id="contactContent">
-        <!-- Contact details loaded here -->
+      <div class="contact-content" id="contactContent"></div>
+    </div>
+
+    <!-- Add Contact Modal -->
+    <div class="modal-overlay" id="addContactModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Add Contact</h2>
+          <button class="modal-close" id="cancelAddContact">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <form id="addContactForm">
+          <div class="form-group">
+            <label>Name *</label>
+            <input type="text" name="contactName" placeholder="John Smith" required>
+          </div>
+          <div class="form-group">
+            <label>Phone *</label>
+            <input type="tel" name="contactPhone" placeholder="(602) 555-1234" required>
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" name="contactEmail" placeholder="john@email.com">
+          </div>
+          <div class="form-group">
+            <label>Vehicle Interest</label>
+            <input type="text" name="contactVehicle" placeholder="2024 Camry XSE">
+          </div>
+          <div class="form-group">
+            <label>Source</label>
+            <select name="contactSource">
+              <option value="Manual">Walk-in / Phone-up</option>
+              <option value="Social">Social Media</option>
+              <option value="QR">QR Code</option>
+              <option value="Referral">Referral</option>
+              <option value="Trade Tool">Trade-In Tool</option>
+              <option value="SMS Keyword">SMS Keyword</option>
+            </select>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Save Contact</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Add Task Modal -->
+    <div class="modal-overlay" id="addTaskModal">
+      <div class="modal">
+        <div class="modal-header">
+          <h2>Add Task</h2>
+          <button class="modal-close" id="cancelAddTask">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <form id="addTaskForm">
+          <div class="form-group">
+            <label>Task *</label>
+            <input type="text" name="taskTitle" placeholder="Follow up with John" required>
+          </div>
+          <div class="form-group">
+            <label>Due Date</label>
+            <input type="date" name="taskDueDate">
+          </div>
+          <input type="hidden" name="taskContactId">
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">Save Task</button>
+          </div>
+        </form>
       </div>
     </div>
 

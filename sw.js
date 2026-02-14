@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fcg-v1';
+const CACHE_NAME = 'fcg-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -35,13 +35,12 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 
-  // Skip API calls (always fetch fresh)
-  if (event.request.url.includes('/api/')) return;
+  // Skip n8n API calls (always fetch fresh, never cache)
+  if (event.request.url.includes('n8n.cloud')) return;
 
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Cache successful responses
         if (response.status === 200) {
           const clone = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
@@ -51,7 +50,6 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // Network failed, try cache
         return caches.match(event.request);
       })
   );
@@ -75,21 +73,32 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Notification click
+// Notification click - deep link to correct view
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const urlToOpen = event.notification.data?.url || '/';
+  const data = event.notification.data || {};
+  let urlToOpen = '/';
+
+  // Deep-link based on notification type
+  if (data.type === 'message' && data.contactId) {
+    urlToOpen = `/?view=messages&contact=${data.contactId}`;
+  } else if (data.type === 'call' && data.contactId) {
+    urlToOpen = `/?view=calls&contact=${data.contactId}`;
+  } else if (data.type === 'task') {
+    urlToOpen = `/?view=today`;
+  } else if (data.url) {
+    urlToOpen = data.url;
+  }
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Focus existing window if open
       for (const client of clientList) {
-        if (client.url.includes('app.friendlycarguy.com') && 'focus' in client) {
+        if ('focus' in client) {
+          client.postMessage({ type: 'navigate', url: urlToOpen });
           return client.focus();
         }
       }
-      // Open new window
       return clients.openWindow(urlToOpen);
     })
   );

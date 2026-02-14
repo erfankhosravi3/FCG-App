@@ -1,67 +1,66 @@
-// Friendly Car Guy - Main App Logic
+// Friendly Car Guy — Dealer Sales System
+// All data flows through n8n → Airtable. No sample data.
 
-// ============================================
-// App State
-// ============================================
 const App = {
-  currentView: 'messagesView',
+  currentView: 'todayView',
   currentContact: null,
   currentConversation: null,
   contacts: [],
   conversations: [],
   calls: [],
+  tasks: [],
+  inventory: [],
   enteredPin: '',
+  pollTimer: null,
+  user: null,
 
-  // Initialize the app
+  // ============================================
+  // Init
+  // ============================================
+
   init() {
-    // Check if already authenticated
     if (API.isAuthenticated()) {
       this.showApp();
     } else {
       this.showLogin();
     }
     this.bindLogin();
+    window.addEventListener('fcg:auth-expired', () => this.showLogin());
+    window.addEventListener('online', () => this.hideOfflineBanner());
+    window.addEventListener('offline', () => this.showOfflineBanner());
   },
 
-  // Show login screen
+  // ============================================
+  // Login
+  // ============================================
+
   showLogin() {
+    this.stopPolling();
     document.getElementById('loginScreen').classList.remove('hidden');
     document.getElementById('app').classList.add('hidden');
     this.enteredPin = '';
     this.updatePinDisplay();
+    this.clearPinError();
   },
 
-  // Show main app
   showApp() {
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     this.initApp();
   },
 
-  // Initialize app after login
   initApp() {
     this.bindNavigation();
     this.bindDetailViews();
     this.bindSearch();
     this.bindMessageInput();
     this.bindLogout();
+    this.bindAddContact();
+    this.bindAddTask();
     this.registerServiceWorker();
     this.loadInitialData();
+    this.startPolling();
   },
-
-  // Bind logout button
-  bindLogout() {
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-      if (confirm('Are you sure you want to log out?')) {
-        API.logout();
-        this.showLogin();
-      }
-    });
-  },
-
-  // ============================================
-  // Login
-  // ============================================
 
   bindLogin() {
     const pinBtns = document.querySelectorAll('.pin-btn[data-digit]');
@@ -93,18 +92,17 @@ const App = {
     const dots = document.querySelectorAll('.pin-dot');
     dots.forEach((dot, i) => {
       dot.classList.remove('filled', 'error');
-      if (i < this.enteredPin.length) {
-        dot.classList.add('filled');
-      }
+      if (i < this.enteredPin.length) dot.classList.add('filled');
     });
   },
 
   async attemptLogin() {
     const result = await API.authenticate(this.enteredPin);
     if (result.success) {
+      this.user = result.user || null;
       this.showApp();
     } else {
-      this.showPinError('Invalid PIN');
+      this.showPinError(result.error || 'Invalid PIN');
       const dots = document.querySelectorAll('.pin-dot');
       dots.forEach(dot => dot.classList.add('error'));
       setTimeout(() => {
@@ -122,6 +120,15 @@ const App = {
     document.getElementById('pinError').textContent = '';
   },
 
+  bindLogout() {
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      if (confirm('Log out?')) {
+        API.logout();
+        this.showLogin();
+      }
+    });
+  },
+
   // ============================================
   // Navigation
   // ============================================
@@ -132,34 +139,230 @@ const App = {
       item.addEventListener('click', () => {
         const viewId = item.dataset.view;
         this.switchView(viewId);
-
-        // Update active state
         navItems.forEach(nav => nav.classList.remove('active'));
         item.classList.add('active');
-
-        // Update header title
         const titles = {
+          todayView: 'Today',
           messagesView: 'Messages',
           callsView: 'Calls',
           contactsView: 'Contacts',
+          inventoryView: 'Inventory',
           dashboardView: 'Dashboard'
         };
-        document.querySelector('.header-title').textContent = titles[viewId];
+        document.querySelector('.header-title').textContent = titles[viewId] || '';
       });
     });
 
-    // Compose button
     document.getElementById('composeBtn').addEventListener('click', () => {
-      this.showToast('New message - Coming soon');
+      this.showAddContactModal();
     });
   },
 
   switchView(viewId) {
-    document.querySelectorAll('.view').forEach(view => {
-      view.classList.remove('active');
-    });
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     document.getElementById(viewId).classList.add('active');
     this.currentView = viewId;
+  },
+
+  // ============================================
+  // Data Loading — Real API
+  // ============================================
+
+  async loadInitialData() {
+    this.showLoadingState();
+    try {
+      const [contacts, conversations, calls, tasks] = await Promise.allSettled([
+        API.getContacts(),
+        API.getConversations(),
+        API.getCalls(),
+        API.getTasks(),
+      ]);
+
+      this.contacts = contacts.status === 'fulfilled' ? (Array.isArray(contacts.value) ? contacts.value : contacts.value.records || []) : [];
+      this.conversations = conversations.status === 'fulfilled' ? (Array.isArray(conversations.value) ? conversations.value : conversations.value.records || []) : [];
+      this.calls = calls.status === 'fulfilled' ? (Array.isArray(calls.value) ? calls.value : calls.value.records || []) : [];
+      this.tasks = tasks.status === 'fulfilled' ? (Array.isArray(tasks.value) ? tasks.value : tasks.value.records || []) : [];
+
+      this.renderAll();
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      this.showToast('Failed to load data');
+    }
+  },
+
+  showLoadingState() {
+    ['conversationList', 'callList', 'contactList', 'todayList', 'activityList'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
+    });
+  },
+
+  renderAll() {
+    this.renderToday();
+    this.renderConversations(this.conversations);
+    this.renderCalls(this.calls);
+    this.renderContacts(this.contacts);
+    this.renderDashboard();
+  },
+
+  // ============================================
+  // Polling — lightweight real-time
+  // ============================================
+
+  startPolling() {
+    this.stopPolling();
+    this.pollTimer = setInterval(() => this.poll(), 30000);
+  },
+
+  stopPolling() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+  },
+
+  async poll() {
+    if (!API.isAuthenticated()) return;
+    try {
+      const [conversations, tasks] = await Promise.allSettled([
+        API.getConversations(),
+        API.getTasks(),
+      ]);
+      if (conversations.status === 'fulfilled') {
+        this.conversations = Array.isArray(conversations.value) ? conversations.value : conversations.value.records || [];
+        if (this.currentView === 'messagesView') this.renderConversations(this.conversations);
+      }
+      if (tasks.status === 'fulfilled') {
+        this.tasks = Array.isArray(tasks.value) ? tasks.value : tasks.value.records || [];
+        if (this.currentView === 'todayView') this.renderToday();
+      }
+    } catch (e) {
+      // Silent — polling failures are non-critical
+    }
+  },
+
+  // ============================================
+  // Today View
+  // ============================================
+
+  renderToday() {
+    const list = document.getElementById('todayList');
+    if (!list) return;
+
+    const now = new Date();
+    const todayStr = now.toISOString().slice(0, 10);
+
+    const overdue = this.tasks.filter(t => t.status !== 'Done' && t.dueDate && t.dueDate < todayStr);
+    const dueToday = this.tasks.filter(t => t.status !== 'Done' && t.dueDate === todayStr);
+    const hotLeads = this.contacts.filter(c => c.temperature === 'hot' || c.temperature === 'Hot');
+    const newLeads = this.contacts.filter(c => c.stage === 'New' || c.stage === 'NEW');
+
+    if (overdue.length === 0 && dueToday.length === 0 && hotLeads.length === 0 && newLeads.length === 0) {
+      list.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">&#9996;</div>
+          <p>All clear</p>
+          <small>No tasks due, no hot leads. Go find some.</small>
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+
+    if (overdue.length > 0) {
+      html += `<div class="today-section"><h3 class="today-section-title overdue">Overdue (${overdue.length})</h3>`;
+      html += overdue.map(t => this.renderTaskItem(t, 'overdue')).join('');
+      html += `</div>`;
+    }
+
+    if (dueToday.length > 0) {
+      html += `<div class="today-section"><h3 class="today-section-title due-today">Due Today (${dueToday.length})</h3>`;
+      html += dueToday.map(t => this.renderTaskItem(t, 'due-today')).join('');
+      html += `</div>`;
+    }
+
+    if (hotLeads.length > 0) {
+      html += `<div class="today-section"><h3 class="today-section-title hot">Hot Leads (${hotLeads.length})</h3>`;
+      html += hotLeads.map(c => `
+        <div class="today-item hot" data-contact-id="${c.id}">
+          <div class="avatar">${this.getInitials(c.name)}</div>
+          <div class="today-item-info">
+            <div class="today-item-title">${this.esc(c.name)}</div>
+            <div class="today-item-sub">${this.esc(c.vehicleInterest || c.stage || '')}</div>
+          </div>
+          <span class="temp-badge hot">HOT</span>
+        </div>
+      `).join('');
+      html += `</div>`;
+    }
+
+    if (newLeads.length > 0) {
+      html += `<div class="today-section"><h3 class="today-section-title new-lead">New Leads (${newLeads.length})</h3>`;
+      html += newLeads.map(c => `
+        <div class="today-item new" data-contact-id="${c.id}">
+          <div class="avatar">${this.getInitials(c.name)}</div>
+          <div class="today-item-info">
+            <div class="today-item-title">${this.esc(c.name)}</div>
+            <div class="today-item-sub">${this.esc(c.source || 'New lead')}</div>
+          </div>
+          <span class="temp-badge new">NEW</span>
+        </div>
+      `).join('');
+      html += `</div>`;
+    }
+
+    list.innerHTML = html;
+
+    list.querySelectorAll('.today-item[data-contact-id]').forEach(item => {
+      item.addEventListener('click', () => {
+        const contact = this.contacts.find(c => c.id === item.dataset.contactId);
+        if (contact) this.showContactDetail(contact);
+      });
+    });
+
+    list.querySelectorAll('.task-item[data-task-id]').forEach(item => {
+      item.addEventListener('click', () => {
+        const taskId = item.dataset.taskId;
+        const task = this.tasks.find(t => t.id === taskId);
+        if (task && task.contactId) {
+          const contact = this.contacts.find(c => c.id === task.contactId);
+          if (contact) this.showContactDetail(contact);
+        }
+      });
+    });
+
+    list.querySelectorAll('.task-check').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.completeTaskFromUI(btn.dataset.taskId);
+      });
+    });
+  },
+
+  renderTaskItem(task, type) {
+    return `
+      <div class="task-item ${type}" data-task-id="${task.id}">
+        <button class="task-check" data-task-id="${task.id}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>
+        </button>
+        <div class="task-item-info">
+          <div class="task-item-title">${this.esc(task.title || task.name || '')}</div>
+          <div class="task-item-sub">${this.esc(task.contactName || '')} ${task.dueDate ? '· ' + task.dueDate : ''}</div>
+        </div>
+      </div>
+    `;
+  },
+
+  async completeTaskFromUI(taskId) {
+    try {
+      await API.completeTask(taskId);
+      this.tasks = this.tasks.filter(t => t.id !== taskId);
+      this.renderToday();
+      this.showToast('Task completed');
+    } catch (error) {
+      this.showToast('Failed to complete task');
+    }
   },
 
   // ============================================
@@ -167,25 +370,12 @@ const App = {
   // ============================================
 
   bindDetailViews() {
-    // Conversation detail
-    document.getElementById('backFromConvo').addEventListener('click', () => {
-      this.hideConversationDetail();
-    });
-
+    document.getElementById('backFromConvo').addEventListener('click', () => this.hideConversationDetail());
     document.getElementById('callFromConvo').addEventListener('click', () => {
-      if (this.currentConversation) {
-        this.initiateCall(this.currentConversation.phone);
-      }
+      if (this.currentConversation) this.initiateCall(this.currentConversation.phone);
     });
-
-    // Contact detail
-    document.getElementById('backFromContact').addEventListener('click', () => {
-      this.hideContactDetail();
-    });
-
-    document.getElementById('editContact').addEventListener('click', () => {
-      this.showToast('Edit contact - Coming soon');
-    });
+    document.getElementById('backFromContact').addEventListener('click', () => this.hideContactDetail());
+    document.getElementById('editContact').addEventListener('click', () => this.showToast('Edit coming soon'));
   },
 
   showConversationDetail(conversation) {
@@ -193,7 +383,7 @@ const App = {
     document.getElementById('convoName').textContent = conversation.name;
     document.getElementById('convoPhone').textContent = this.formatPhone(conversation.phone);
     document.getElementById('conversationDetail').classList.add('active');
-    this.loadMessages(conversation.id);
+    this.loadMessages(conversation.contactId || conversation.id);
   },
 
   hideConversationDetail() {
@@ -204,7 +394,7 @@ const App = {
   showContactDetail(contact) {
     this.currentContact = contact;
     document.getElementById('contactDetailName').textContent = contact.name;
-    document.getElementById('contactDetailStatus').textContent = contact.status || 'New Lead';
+    document.getElementById('contactDetailStatus').textContent = contact.stage || contact.status || 'New Lead';
     document.getElementById('contactDetail').classList.add('active');
     this.renderContactContent(contact);
   },
@@ -226,9 +416,13 @@ const App = {
         ${contact.email ? `
         <div class="contact-field">
           <div class="contact-field-label">Email</div>
-          <div class="contact-field-value">${contact.email}</div>
-        </div>
-        ` : ''}
+          <div class="contact-field-value">${this.esc(contact.email)}</div>
+        </div>` : ''}
+        ${contact.source ? `
+        <div class="contact-field">
+          <div class="contact-field-label">Source</div>
+          <div class="contact-field-value">${this.esc(contact.source)}</div>
+        </div>` : ''}
       </div>
 
       ${contact.vehicleInterest || contact.budget ? `
@@ -236,36 +430,51 @@ const App = {
         <h3>Interest</h3>
         ${contact.vehicleInterest ? `
         <div class="contact-field">
-          <div class="contact-field-label">Vehicle Interest</div>
-          <div class="contact-field-value">${contact.vehicleInterest}</div>
-        </div>
-        ` : ''}
+          <div class="contact-field-label">Vehicle</div>
+          <div class="contact-field-value">${this.esc(contact.vehicleInterest)}</div>
+        </div>` : ''}
         ${contact.budget ? `
         <div class="contact-field">
           <div class="contact-field-label">Budget</div>
-          <div class="contact-field-value">$${contact.budget.toLocaleString()}</div>
+          <div class="contact-field-value">$${Number(contact.budget).toLocaleString()}</div>
+        </div>` : ''}
+        ${contact.timeline ? `
+        <div class="contact-field">
+          <div class="contact-field-label">Timeline</div>
+          <div class="contact-field-value">${this.esc(contact.timeline)}</div>
+        </div>` : ''}
+      </div>` : ''}
+
+      ${contact.temperature ? `
+      <div class="contact-section">
+        <h3>Status</h3>
+        <div class="contact-field">
+          <div class="contact-field-label">Temperature</div>
+          <div class="contact-field-value"><span class="temp-badge ${(contact.temperature || '').toLowerCase()}">${this.esc(contact.temperature)}</span></div>
         </div>
-        ` : ''}
-      </div>
-      ` : ''}
+        ${contact.stage ? `
+        <div class="contact-field">
+          <div class="contact-field-label">Stage</div>
+          <div class="contact-field-value">${this.esc(contact.stage)}</div>
+        </div>` : ''}
+      </div>` : ''}
 
       ${contact.notes ? `
       <div class="contact-section">
         <h3>Notes</h3>
         <div class="contact-field">
-          <div class="contact-field-value">${contact.notes}</div>
+          <div class="contact-field-value">${this.esc(contact.notes)}</div>
         </div>
-      </div>
-      ` : ''}
+      </div>` : ''}
 
       <div class="contact-actions">
-        <button class="contact-action-btn primary" onclick="App.initiateCall('${contact.phone}')">
+        <button class="contact-action-btn primary" onclick="App.initiateCall('${this.esc(contact.phone)}')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
           </svg>
           Call
         </button>
-        <button class="contact-action-btn secondary" onclick="App.startConversation('${contact.id}')">
+        <button class="contact-action-btn secondary" onclick="App.startConversation('${this.esc(contact.id)}')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
           </svg>
@@ -276,163 +485,106 @@ const App = {
   },
 
   // ============================================
-  // Search
+  // Messages
   // ============================================
 
-  bindSearch() {
-    document.getElementById('messageSearch').addEventListener('input', (e) => {
-      this.filterConversations(e.target.value);
-    });
-
-    document.getElementById('callSearch').addEventListener('input', (e) => {
-      this.filterCalls(e.target.value);
-    });
-
-    document.getElementById('contactSearch').addEventListener('input', (e) => {
-      this.filterContacts(e.target.value);
-    });
-  },
-
-  filterConversations(query) {
-    const filtered = this.conversations.filter(c =>
-      c.name.toLowerCase().includes(query.toLowerCase()) ||
-      c.phone.includes(query)
-    );
-    this.renderConversations(filtered);
-  },
-
-  filterCalls(query) {
-    const filtered = this.calls.filter(c =>
-      c.name.toLowerCase().includes(query.toLowerCase()) ||
-      c.phone.includes(query)
-    );
-    this.renderCalls(filtered);
-  },
-
-  filterContacts(query) {
-    const filtered = this.contacts.filter(c =>
-      c.name.toLowerCase().includes(query.toLowerCase()) ||
-      c.phone.includes(query)
-    );
-    this.renderContacts(filtered);
-  },
-
-  // ============================================
-  // Message Input
-  // ============================================
-
-  bindMessageInput() {
-    const input = document.getElementById('messageInput');
-    const sendBtn = document.getElementById('sendBtn');
-
-    sendBtn.addEventListener('click', () => {
-      this.sendMessage();
-    });
-
-    input.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        this.sendMessage();
-      }
-    });
-  },
-
-  async sendMessage() {
-    const input = document.getElementById('messageInput');
-    const body = input.value.trim();
-
-    if (!body || !this.currentConversation) return;
-
-    // Optimistically add message to UI
-    this.addMessageToUI({
-      body,
-      direction: 'Outbound',
-      timestamp: new Date().toISOString()
-    });
-
-    input.value = '';
+  async loadMessages(contactId) {
+    const container = document.getElementById('messagesContainer');
+    container.innerHTML = '<div class="loading-state"><div class="spinner"></div></div>';
 
     try {
-      await API.sendMessage(this.currentConversation.contactId, body);
+      const data = await API.getMessages(contactId);
+      const messages = Array.isArray(data) ? data : data.records || [];
+      container.innerHTML = '';
+      if (messages.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No messages yet</p></div>';
+        return;
+      }
+      messages.forEach(msg => this.addMessageToUI(msg));
     } catch (error) {
-      this.showToast('Failed to send message');
+      container.innerHTML = `<div class="empty-state"><p>Could not load messages</p><small>${this.esc(error.message)}</small></div>`;
     }
   },
 
   addMessageToUI(message) {
     const container = document.getElementById('messagesContainer');
     const div = document.createElement('div');
-    div.className = `message ${message.direction === 'Outbound' ? 'sent' : 'received'}`;
-    div.textContent = message.body;
+    const isOutbound = message.direction === 'Outbound' || message.direction === 'outbound';
+    div.className = `message ${isOutbound ? 'sent' : 'received'}`;
+    div.textContent = message.body || message.text || '';
     container.appendChild(div);
     container.scrollTop = container.scrollHeight;
   },
 
-  // ============================================
-  // Data Loading
-  // ============================================
-
-  async loadInitialData() {
-    // For now, load sample data. Will be replaced with API calls.
-    this.loadSampleData();
+  bindMessageInput() {
+    const input = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    sendBtn.addEventListener('click', () => this.sendMessage());
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') this.sendMessage();
+    });
   },
 
-  loadSampleData() {
-    // Sample conversations
-    this.conversations = [
-      { id: '1', contactId: 'c1', name: 'John Smith', phone: '5551234567', lastMessage: 'Thanks for the info!', time: '2:30 PM', unread: 2 },
-      { id: '2', contactId: 'c2', name: 'Sarah Johnson', phone: '5559876543', lastMessage: 'When can I come see the car?', time: '11:45 AM', unread: 0 },
-    ];
+  async sendMessage() {
+    const input = document.getElementById('messageInput');
+    const body = input.value.trim();
+    if (!body || !this.currentConversation) return;
 
-    // Sample calls
-    this.calls = [
-      { id: '1', contactId: 'c1', name: 'John Smith', phone: '5551234567', direction: 'incoming', duration: 245, time: '3:15 PM' },
-      { id: '2', contactId: 'c3', name: 'Unknown', phone: '5555555555', direction: 'missed', duration: 0, time: '1:30 PM' },
-      { id: '3', contactId: 'c2', name: 'Sarah Johnson', phone: '5559876543', direction: 'outgoing', duration: 180, time: 'Yesterday' },
-    ];
+    this.addMessageToUI({ body, direction: 'Outbound' });
+    input.value = '';
 
-    // Sample contacts
-    this.contacts = [
-      { id: 'c1', name: 'John Smith', phone: '5551234567', email: 'john@email.com', status: 'Hot', vehicleInterest: '2024 Camry', budget: 35000 },
-      { id: 'c2', name: 'Sarah Johnson', phone: '5559876543', status: 'New', vehicleInterest: 'RAV4 Hybrid' },
-      { id: 'c3', name: 'Mike Wilson', phone: '5555555555', status: 'Contacted' },
-    ];
-
-    this.renderConversations(this.conversations);
-    this.renderCalls(this.calls);
-    this.renderContacts(this.contacts);
-    this.renderDashboard();
-  },
-
-  async loadMessages(conversationId) {
-    const container = document.getElementById('messagesContainer');
-    container.innerHTML = '<div class="spinner" style="margin: 20px auto;"></div>';
-
-    // Sample messages for now
-    const messages = [
-      { body: 'Hi, I saw your listing for the Camry', direction: 'Inbound', timestamp: '2:25 PM' },
-      { body: 'Yes! It\'s still available. Would you like to schedule a test drive?', direction: 'Outbound', timestamp: '2:27 PM' },
-      { body: 'That would be great. What times work?', direction: 'Inbound', timestamp: '2:28 PM' },
-      { body: 'I\'m free tomorrow afternoon or Saturday morning. Which works better for you?', direction: 'Outbound', timestamp: '2:29 PM' },
-      { body: 'Thanks for the info!', direction: 'Inbound', timestamp: '2:30 PM' },
-    ];
-
-    container.innerHTML = '';
-    messages.forEach(msg => this.addMessageToUI(msg));
+    try {
+      await API.sendMessage(this.currentConversation.contactId || this.currentConversation.id, body);
+    } catch (error) {
+      this.showToast('Failed to send message');
+    }
   },
 
   // ============================================
-  // Rendering
+  // Search
+  // ============================================
+
+  bindSearch() {
+    const debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+
+    document.getElementById('messageSearch').addEventListener('input', debounce((e) => {
+      const q = e.target.value.toLowerCase();
+      const filtered = this.conversations.filter(c =>
+        (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q)
+      );
+      this.renderConversations(filtered);
+    }, 200));
+
+    document.getElementById('callSearch').addEventListener('input', debounce((e) => {
+      const q = e.target.value.toLowerCase();
+      const filtered = this.calls.filter(c =>
+        (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q)
+      );
+      this.renderCalls(filtered);
+    }, 200));
+
+    document.getElementById('contactSearch').addEventListener('input', debounce((e) => {
+      const q = e.target.value.toLowerCase();
+      const filtered = this.contacts.filter(c =>
+        (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q)
+      );
+      this.renderContacts(filtered);
+    }, 200));
+  },
+
+  // ============================================
+  // Rendering — Conversations
   // ============================================
 
   renderConversations(conversations) {
     const list = document.getElementById('conversationList');
 
-    if (conversations.length === 0) {
+    if (!conversations || conversations.length === 0) {
       list.innerHTML = `
         <div class="empty-state">
-          <div class="empty-icon">💬</div>
+          <div class="empty-icon">&#128172;</div>
           <p>No messages yet</p>
-          <small>Messages with customers will appear here</small>
+          <small>Conversations with leads will appear here</small>
         </div>
       `;
       return;
@@ -442,35 +594,37 @@ const App = {
       <div class="conversation-item" data-id="${convo.id}">
         <div class="avatar">${this.getInitials(convo.name)}</div>
         <div class="conversation-info">
-          <div class="conversation-name">${convo.name}</div>
-          <div class="conversation-preview">${convo.lastMessage}</div>
+          <div class="conversation-name">${this.esc(convo.name)}</div>
+          <div class="conversation-preview">${this.esc(convo.lastMessage || convo.preview || '')}</div>
         </div>
         <div class="conversation-meta">
-          <div class="conversation-time">${convo.time}</div>
+          <div class="conversation-time">${this.esc(convo.time || this.formatTime(convo.date || convo.updatedAt))}</div>
           ${convo.unread > 0 ? `<div class="unread-badge">${convo.unread}</div>` : ''}
         </div>
       </div>
     `).join('');
 
-    // Bind click events
     list.querySelectorAll('.conversation-item').forEach(item => {
       item.addEventListener('click', () => {
-        const id = item.dataset.id;
-        const convo = this.conversations.find(c => c.id === id);
+        const convo = this.conversations.find(c => c.id === item.dataset.id);
         if (convo) this.showConversationDetail(convo);
       });
     });
   },
 
+  // ============================================
+  // Rendering — Calls
+  // ============================================
+
   renderCalls(calls) {
     const list = document.getElementById('callList');
 
-    if (calls.length === 0) {
+    if (!calls || calls.length === 0) {
       list.innerHTML = `
         <div class="empty-state">
-          <div class="empty-icon">📞</div>
+          <div class="empty-icon">&#128222;</div>
           <p>No calls yet</p>
-          <small>Your call history will appear here</small>
+          <small>Call history will appear here</small>
         </div>
       `;
       return;
@@ -478,31 +632,35 @@ const App = {
 
     list.innerHTML = calls.map(call => `
       <div class="call-item" data-id="${call.id}">
-        <div class="avatar">${this.getInitials(call.name)}</div>
+        <div class="avatar">${this.getInitials(call.name || 'Unknown')}</div>
         <div class="call-info">
-          <div class="call-name">${call.name}</div>
-          <div class="call-type ${call.direction}">
+          <div class="call-name">${this.esc(call.name || 'Unknown')}</div>
+          <div class="call-type ${call.direction || ''}">
             ${this.getCallIcon(call.direction)}
-            ${call.direction.charAt(0).toUpperCase() + call.direction.slice(1)}
-            ${call.duration > 0 ? ` • ${this.formatDuration(call.duration)}` : ''}
+            ${this.esc((call.direction || 'unknown').charAt(0).toUpperCase() + (call.direction || 'unknown').slice(1))}
+            ${call.duration > 0 ? ` &middot; ${this.formatDuration(call.duration)}` : ''}
           </div>
         </div>
         <div class="call-meta">
-          <div class="call-time">${call.time}</div>
+          <div class="call-time">${this.esc(call.time || this.formatTime(call.date || call.createdAt))}</div>
         </div>
       </div>
     `).join('');
   },
 
+  // ============================================
+  // Rendering — Contacts
+  // ============================================
+
   renderContacts(contacts) {
     const list = document.getElementById('contactList');
 
-    if (contacts.length === 0) {
+    if (!contacts || contacts.length === 0) {
       list.innerHTML = `
         <div class="empty-state">
-          <div class="empty-icon">👥</div>
+          <div class="empty-icon">&#128101;</div>
           <p>No contacts yet</p>
-          <small>Add your first contact to get started</small>
+          <small>Add your first lead to get started</small>
         </div>
       `;
       return;
@@ -512,40 +670,59 @@ const App = {
       <div class="contact-item" data-id="${contact.id}">
         <div class="avatar">${this.getInitials(contact.name)}</div>
         <div class="contact-info">
-          <div class="contact-name">${contact.name}</div>
+          <div class="contact-name">${this.esc(contact.name)}</div>
           <div class="contact-phone">${this.formatPhone(contact.phone)}</div>
         </div>
-        ${contact.status ? `<span class="contact-status ${contact.status.toLowerCase()}">${contact.status}</span>` : ''}
+        ${contact.temperature || contact.stage || contact.status ? `
+          <span class="contact-status ${(contact.temperature || contact.status || '').toLowerCase()}">${this.esc(contact.temperature || contact.stage || contact.status)}</span>
+        ` : ''}
       </div>
     `).join('');
 
-    // Bind click events
     list.querySelectorAll('.contact-item').forEach(item => {
       item.addEventListener('click', () => {
-        const id = item.dataset.id;
-        const contact = this.contacts.find(c => c.id === id);
+        const contact = this.contacts.find(c => c.id === item.dataset.id);
         if (contact) this.showContactDetail(contact);
       });
     });
   },
 
+  // ============================================
+  // Rendering — Dashboard
+  // ============================================
+
   renderDashboard() {
-    document.getElementById('statCalls').textContent = this.calls.filter(c => c.time.includes('PM') || c.time.includes('AM')).length;
-    document.getElementById('statTexts').textContent = this.conversations.reduce((sum, c) => sum + (c.unread || 0), 0) + this.conversations.length;
-    document.getElementById('statLeads').textContent = this.contacts.filter(c => c.status === 'New').length;
-    document.getElementById('statFollowups').textContent = '0';
+    const todayStr = new Date().toISOString().slice(0, 10);
 
-    // Recent activity
+    // Compute from loaded data
+    const callsToday = this.calls.filter(c => (c.date || c.createdAt || '').slice(0, 10) === todayStr).length;
+    const textsToday = this.conversations.filter(c => (c.date || c.updatedAt || '').slice(0, 10) === todayStr).length;
+    const newLeads = this.contacts.filter(c => c.stage === 'New' || c.stage === 'NEW').length;
+    const followUpsDue = this.tasks.filter(t => t.status !== 'Done' && t.dueDate && t.dueDate <= todayStr).length;
+
+    document.getElementById('statCalls').textContent = callsToday;
+    document.getElementById('statTexts').textContent = textsToday;
+    document.getElementById('statLeads').textContent = newLeads;
+    document.getElementById('statFollowups').textContent = followUpsDue;
+
     const activityList = document.getElementById('activityList');
-    const activities = [
-      ...this.calls.slice(0, 2).map(c => ({ type: 'call', text: `${c.direction} call with ${c.name}`, time: c.time })),
-      ...this.conversations.slice(0, 2).map(c => ({ type: 'message', text: `Message from ${c.name}`, time: c.time }))
-    ].sort(() => Math.random() - 0.5).slice(0, 4);
+    const recent = [
+      ...this.calls.slice(0, 3).map(c => ({
+        type: 'call',
+        text: `${(c.direction || '').charAt(0).toUpperCase() + (c.direction || '').slice(1)} call with ${c.name || 'Unknown'}`,
+        time: c.time || this.formatTime(c.date || c.createdAt)
+      })),
+      ...this.conversations.slice(0, 3).map(c => ({
+        type: 'message',
+        text: `Message from ${c.name || 'Unknown'}`,
+        time: c.time || this.formatTime(c.date || c.updatedAt)
+      }))
+    ].slice(0, 5);
 
-    if (activities.length === 0) {
+    if (recent.length === 0) {
       activityList.innerHTML = '<div class="empty-state"><p>No recent activity</p></div>';
     } else {
-      activityList.innerHTML = activities.map(a => `
+      activityList.innerHTML = recent.map(a => `
         <div class="activity-item">
           <div class="activity-icon">
             ${a.type === 'call' ?
@@ -553,11 +730,111 @@ const App = {
               '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>'
             }
           </div>
-          <div class="activity-text">${a.text}</div>
-          <div class="activity-time">${a.time}</div>
+          <div class="activity-text">${this.esc(a.text)}</div>
+          <div class="activity-time">${this.esc(a.time)}</div>
         </div>
       `).join('');
     }
+  },
+
+  // ============================================
+  // Add Contact Modal
+  // ============================================
+
+  bindAddContact() {
+    const modal = document.getElementById('addContactModal');
+    const form = document.getElementById('addContactForm');
+    const cancelBtn = document.getElementById('cancelAddContact');
+
+    cancelBtn.addEventListener('click', () => modal.classList.remove('active'));
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.remove('active');
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = {
+        name: form.contactName.value.trim(),
+        phone: form.contactPhone.value.trim(),
+        email: form.contactEmail.value.trim() || undefined,
+        vehicleInterest: form.contactVehicle.value.trim() || undefined,
+        source: form.contactSource.value || 'Manual',
+        stage: 'New',
+      };
+      if (!data.name || !data.phone) {
+        this.showToast('Name and phone are required');
+        return;
+      }
+      const submitBtn = form.querySelector('button[type="submit"]');
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
+      try {
+        const created = await API.createContact(data);
+        this.contacts.unshift(created);
+        this.renderContacts(this.contacts);
+        this.renderToday();
+        modal.classList.remove('active');
+        form.reset();
+        this.showToast('Contact added');
+      } catch (error) {
+        this.showToast('Failed to add contact');
+      }
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save Contact';
+    });
+  },
+
+  showAddContactModal() {
+    document.getElementById('addContactModal').classList.add('active');
+    document.getElementById('addContactForm').reset();
+    setTimeout(() => document.querySelector('#addContactForm input[name="contactName"]').focus(), 300);
+  },
+
+  // ============================================
+  // Add Task
+  // ============================================
+
+  bindAddTask() {
+    const modal = document.getElementById('addTaskModal');
+    if (!modal) return;
+    const form = document.getElementById('addTaskForm');
+    const cancelBtn = document.getElementById('cancelAddTask');
+
+    cancelBtn.addEventListener('click', () => modal.classList.remove('active'));
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) modal.classList.remove('active');
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = {
+        title: form.taskTitle.value.trim(),
+        dueDate: form.taskDueDate.value || undefined,
+        contactId: form.taskContactId.value || undefined,
+      };
+      if (!data.title) {
+        this.showToast('Task title is required');
+        return;
+      }
+      try {
+        const created = await API.createTask(data);
+        this.tasks.unshift(created);
+        this.renderToday();
+        modal.classList.remove('active');
+        form.reset();
+        this.showToast('Task added');
+      } catch (error) {
+        this.showToast('Failed to add task');
+      }
+    });
+  },
+
+  showAddTaskModal(contactId) {
+    const modal = document.getElementById('addTaskModal');
+    if (!modal) return;
+    modal.classList.add('active');
+    document.getElementById('addTaskForm').reset();
+    if (contactId) document.querySelector('#addTaskForm input[name="taskContactId"]').value = contactId;
   },
 
   // ============================================
@@ -565,7 +842,6 @@ const App = {
   // ============================================
 
   initiateCall(phone) {
-    // Opens native phone dialer
     window.location.href = `tel:${phone}`;
   },
 
@@ -583,8 +859,36 @@ const App = {
   },
 
   // ============================================
+  // Offline Banner
+  // ============================================
+
+  showOfflineBanner() {
+    let banner = document.getElementById('offlineBanner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'offlineBanner';
+      banner.className = 'offline-banner';
+      banner.textContent = 'No internet connection';
+      document.getElementById('app').prepend(banner);
+    }
+    banner.classList.add('show');
+  },
+
+  hideOfflineBanner() {
+    const banner = document.getElementById('offlineBanner');
+    if (banner) banner.classList.remove('show');
+  },
+
+  // ============================================
   // Utilities
   // ============================================
+
+  esc(str) {
+    if (!str) return '';
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  },
 
   getInitials(name) {
     if (!name || name === 'Unknown') return '?';
@@ -597,6 +901,9 @@ const App = {
     if (cleaned.length === 10) {
       return `(${cleaned.slice(0,3)}) ${cleaned.slice(3,6)}-${cleaned.slice(6)}`;
     }
+    if (cleaned.length === 11 && cleaned[0] === '1') {
+      return `(${cleaned.slice(1,4)}) ${cleaned.slice(4,7)}-${cleaned.slice(7)}`;
+    }
     return phone;
   },
 
@@ -606,11 +913,30 @@ const App = {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   },
 
+  formatTime(isoStr) {
+    if (!isoStr) return '';
+    try {
+      const d = new Date(isoStr);
+      const now = new Date();
+      const diffDays = Math.floor((now - d) / 86400000);
+      if (diffDays === 0) {
+        return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+      }
+      if (diffDays === 1) return 'Yesterday';
+      if (diffDays < 7) return d.toLocaleDateString('en-US', { weekday: 'short' });
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch {
+      return '';
+    }
+  },
+
   getCallIcon(direction) {
     const icons = {
       incoming: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>',
       outgoing: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>',
-      missed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 2 5a2 2 0 0 1 2-2"/><path d="m15 3 6 6M21 3l-6 6"/></svg>'
+      missed: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 2 5a2 2 0 0 1 2-2"/><path d="m15 3 6 6M21 3l-6 6"/></svg>',
+      inbound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>',
+      outbound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>',
     };
     return icons[direction] || '';
   },
@@ -630,19 +956,15 @@ const App = {
     if ('serviceWorker' in navigator) {
       try {
         const registration = await navigator.serviceWorker.register('/sw.js');
-        console.log('Service Worker registered:', registration.scope);
-
-        // Request notification permission
+        console.log('SW registered:', registration.scope);
         if ('Notification' in window && Notification.permission === 'default') {
-          const permission = await Notification.requestPermission();
-          console.log('Notification permission:', permission);
+          await Notification.requestPermission();
         }
       } catch (error) {
-        console.error('Service Worker registration failed:', error);
+        console.error('SW registration failed:', error);
       }
     }
   }
 };
 
-// Initialize app when DOM is ready
 document.addEventListener('DOMContentLoaded', () => App.init());

@@ -1,391 +1,414 @@
-# n8n Workflow Setup Guide
+# Friendly Car Guy — Intelligence System Architecture
 
-This guide walks you through setting up the n8n workflows that power the Friendly Car Guy app.
+## Philosophy
 
-## Prerequisites
+You don't need a CRM. You need a **second brain** that activates your first one.
 
-- n8n account at https://erfank.app.n8n.cloud
-- Airtable Personal Access Token configured in n8n
-- Twilio credentials configured in n8n
-- Airtable Base ID: `appmxWdYfVSSHszgE`
-
-## Table Names in Airtable
-
-Make sure your tables are named exactly as follows:
-1. People
-2. Value Log
-3. Introductions
-4. Life Events
-5. Opportunities
-6. Calls
-7. Messages
-8. Deals
-9. Tasks
-10. Appointments
-11. Inventory
-12. Templates
-13. Sources
+The system's job is to **hand you a briefing** the moment someone reaches out — not make you dig through records. Every interaction should feel like you have perfect memory.
 
 ---
 
-## Workflow 1: Get All People (Contacts)
+## Core Principle: Person-Centric
 
-**Purpose:** Fetch all contacts for the app's contact list.
+The 13 Airtable tables are not 13 separate things. They are **facets of one entity: the Person**.
 
-### Setup Steps:
+When John calls, you don't need:
+- His contact record
+- His message history
+- His call log
+- His tasks
+- His deals
 
-1. Create new workflow, name it "Get All People"
-2. Add **Webhook** node:
-   - HTTP Method: GET
-   - Path: `/people`
-   - Response Mode: Last Node
-
-3. Add **Airtable** node:
-   - Operation: Search
-   - Base: Select your base (appmxWdYfVSSHszgE)
-   - Table: People
-   - Return All: true
-
-4. Add **Respond to Webhook** node:
-   - Response Code: 200
-   - Response Body: `{{ $json }}`
-
-5. Connect: Webhook → Airtable → Respond to Webhook
-
-6. Activate workflow
-
-**Test URL:** `https://erfank.app.n8n.cloud/webhook/people`
+You need: **"Here's everything relevant about John, right now, in 5 seconds."**
 
 ---
 
-## Workflow 2: Get Person by Phone
+## The Briefing
 
-**Purpose:** Look up a person by phone number (for incoming calls/SMS).
+When someone contacts you, the system generates this:
 
-### Setup Steps:
-
-1. Create new workflow, name it "Get Person by Phone"
-2. Add **Webhook** node:
-   - HTTP Method: GET
-   - Path: `/people/phone/{phone}`
-   - Response Mode: Last Node
-
-3. Add **Airtable** node:
-   - Operation: Search
-   - Base: Your base
-   - Table: People
-   - Filter by Formula: `{Phone} = '{{ $json.params.phone }}'`
-
-4. Add **IF** node:
-   - Condition: `{{ $json.length > 0 }}`
-
-5. Add **Respond to Webhook** node (for found):
-   - Response Body: `{{ $json[0] }}`
-
-6. Add **Respond to Webhook** node (for not found):
-   - Response Code: 404
-   - Response Body: `{ "error": "Person not found" }`
-
-7. Connect appropriately
-
-**Test URL:** `https://erfank.app.n8n.cloud/webhook/people/phone/+16021234567`
+```
+┌──────────────────────────────────────────────────┐
+│  JOHN SMITH                          Incoming    │
+│  "Mike's coworker from Honeywell"                │
+├──────────────────────────────────────────────────┤
+│  LOOKING FOR: 2024 Camry Hybrid · $35-40k        │
+│  TIMELINE: This month                            │
+├──────────────────────────────────────────────────┤
+│  LAST TALK (2 days ago):                         │
+│  "Waiting on credit union pre-approval.          │
+│   Asked about the red one."                      │
+├──────────────────────────────────────────────────┤
+│  YOU PROMISED:                                   │
+│  ✗ Send Carfax (Jan 28 — overdue)                │
+│  ✗ Check if red Camry still available            │
+├──────────────────────────────────────────────────┤
+│  PERSONAL:                                       │
+│  Wife Sarah · 2 kids · Coaches little league     │
+│  Dog named Max                                   │
+├──────────────────────────────────────────────────┤
+│  TRUST LEDGER:                                   │
+│  ↑ He referred you to Tom (his coworker)         │
+│  ↓ You connected him with your mechanic          │
+└──────────────────────────────────────────────────┘
+```
 
 ---
 
-## Workflow 3: Get Messages (Conversations)
+## System Architecture
 
-**Purpose:** Fetch all messages grouped by contact.
+```
+                    ┌─────────────────┐
+                    │   Your iPhone   │
+                    │   (PWA App)     │
+                    └────────┬────────┘
+                             │
+                             ▼
+                    ┌─────────────────┐
+                    │      n8n        │
+                    │  Intelligence   │
+                    │     Layer       │
+                    └────────┬────────┘
+                             │
+         ┌───────────────────┼───────────────────┐
+         ▼                   ▼                   ▼
+    ┌─────────┐        ┌──────────┐        ┌─────────┐
+    │ Twilio  │        │ Airtable │        │ Claude  │
+    │         │        │  (Data)  │        │  (AI)   │
+    │ Calls   │        │          │        │         │
+    │ SMS     │        │ 13 Tables│        │ Briefs  │
+    └─────────┘        └──────────┘        └─────────┘
+```
 
-### Setup Steps:
+---
 
-1. Create new workflow, name it "Get Messages"
-2. Add **Webhook** node:
-   - HTTP Method: GET
-   - Path: `/messages/conversations`
+## Three Core Workflows
 
-3. Add **Airtable** node:
-   - Operation: Search
-   - Table: Messages
-   - Sort: Created DESC
-   - Return All: true
+### Workflow 1: Person Intelligence API
 
-4. Add **Code** node to group by contact:
-```javascript
-// Group messages by Person
-const messages = $input.all().map(item => item.json);
-const conversations = {};
+**The heart of the system.** One call returns everything about a person.
 
-for (const msg of messages) {
-  const personId = msg.fields.Person?.[0];
-  if (!personId) continue;
+**Endpoint:** `POST /webhook/person-intel`
 
-  if (!conversations[personId]) {
-    conversations[personId] = {
-      personId,
-      messages: [],
-      lastMessage: null,
-      unreadCount: 0
-    };
-  }
-
-  conversations[personId].messages.push(msg);
-
-  if (!conversations[personId].lastMessage) {
-    conversations[personId].lastMessage = msg;
-  }
+**Input:**
+```json
+{
+  "phone": "+16021234567"    // OR
+  "personId": "recXXXXXX"
 }
-
-return Object.values(conversations);
 ```
 
-5. Add **Respond to Webhook** node
-
----
-
-## Workflow 4: Get Messages for Contact
-
-**Purpose:** Fetch message thread for a specific contact.
-
-### Setup Steps:
-
-1. Create new workflow, name it "Get Contact Messages"
-2. Add **Webhook** node:
-   - HTTP Method: GET
-   - Path: `/messages/{contactId}`
-
-3. Add **Airtable** node:
-   - Operation: Search
-   - Table: Messages
-   - Filter by Formula: `FIND('{{ $json.params.contactId }}', ARRAYJOIN({Person}))`
-   - Sort: Timestamp ASC
-
-4. Add **Respond to Webhook** node
-
----
-
-## Workflow 5: Send SMS
-
-**Purpose:** Send an SMS through Twilio and log to Airtable.
-
-### Setup Steps:
-
-1. Create new workflow, name it "Send SMS"
-2. Add **Webhook** node:
-   - HTTP Method: POST
-   - Path: `/messages/send`
-   - Response Mode: Last Node
-
-3. Add **Twilio** node:
-   - Operation: Send SMS
-   - From: +16029057670
-   - To: `{{ $json.body.to }}`
-   - Message: `{{ $json.body.body }}`
-
-4. Add **Airtable** node:
-   - Operation: Create
-   - Table: Messages
-   - Fields:
-     - Person: `{{ $json.body.personId }}`
-     - Direction: Outbound
-     - Body: `{{ $json.body.body }}`
-     - Status: Sent
-     - Timestamp: `{{ $now }}`
-     - Twilio SID: `{{ $node["Twilio"].json.sid }}`
-
-5. Add **Respond to Webhook** node:
-   - Response Body: `{ "success": true, "messageId": "{{ $json.id }}" }`
-
----
-
-## Workflow 6: Incoming SMS Handler
-
-**Purpose:** Receive SMS from Twilio webhook and log to Airtable.
-
-### Setup Steps:
-
-1. Create new workflow, name it "Incoming SMS"
-2. Add **Webhook** node:
-   - HTTP Method: POST
-   - Path: `/twilio/sms`
-
-3. Add **Airtable** node (lookup person):
-   - Operation: Search
-   - Table: People
-   - Filter: `{Phone} = '{{ $json.body.From }}'`
-
-4. Add **IF** node to check if person exists
-
-5. If person exists branch:
-   - Add **Airtable** node to create message with Person link
-
-6. If person doesn't exist branch:
-   - Add **Airtable** node to create new Person
-   - Add **Airtable** node to create message with new Person link
-
-7. Add **Respond to Webhook** node:
-   - Return TwiML: `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`
-
-**Twilio Webhook URL:** `https://erfank.app.n8n.cloud/webhook/twilio/sms`
-
----
-
-## Workflow 7: Incoming Call Handler
-
-**Purpose:** Handle incoming calls - forward to cell and log.
-
-### Setup Steps:
-
-1. Create new workflow, name it "Incoming Call"
-2. Add **Webhook** node:
-   - HTTP Method: POST
-   - Path: `/twilio/voice`
-
-3. Add **Airtable** node (lookup person):
-   - Operation: Search
-   - Table: People
-   - Filter: `{Phone} = '{{ $json.body.From }}'`
-
-4. Add **Airtable** node (log call):
-   - Operation: Create
-   - Table: Calls
-   - Fields:
-     - Person: Link if found
-     - Direction: Inbound
-     - Caller ID: `{{ $json.body.From }}`
-     - Timestamp: `{{ $now }}`
-     - Twilio SID: `{{ $json.body.CallSid }}`
-     - Status: Ringing
-
-5. Add **Respond to Webhook** node:
-   - Content Type: text/xml
-   - Response Body:
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Dial timeout="25" callerId="+16029057670" record="record-from-answer-dual">
-    +12027487308
-  </Dial>
-  <Say>The person you are trying to reach is unavailable. Please leave a message after the beep.</Say>
-  <Record maxLength="120" playBeep="true" transcribe="true"/>
-</Response>
+**Output:**
+```json
+{
+  "person": {
+    "id": "recXXXXXX",
+    "name": "John Smith",
+    "phone": "+16021234567",
+    "email": "john@email.com",
+    "photo": "url",
+    "source": "Referral from Mike",
+    "status": "Hot",
+    "createdAt": "2024-01-15"
+  },
+  "opportunity": {
+    "vehicle": "2024 Camry Hybrid",
+    "budget": "$35-40k",
+    "timeline": "This month",
+    "status": "Negotiating"
+  },
+  "lastInteraction": {
+    "type": "call",
+    "date": "2024-01-27",
+    "summary": "Discussed financing. Waiting on CU pre-approval."
+  },
+  "openTasks": [
+    { "title": "Send Carfax", "due": "2024-01-28", "overdue": true },
+    { "title": "Check red Camry availability", "due": "2024-01-29" }
+  ],
+  "personalContext": {
+    "family": "Wife Sarah, 2 kids",
+    "work": "Engineer at Honeywell",
+    "interests": "Coaches little league, has dog Max"
+  },
+  "valueLedger": {
+    "given": ["Connected him with my mechanic"],
+    "received": ["Referred me to coworker Tom"]
+  },
+  "recentMessages": [
+    { "direction": "in", "body": "Thanks for the info!", "date": "2024-01-27" }
+  ],
+  "recentCalls": [
+    { "direction": "in", "duration": 245, "date": "2024-01-27" }
+  ],
+  "briefing": "John is close to buying. He's waiting on financing and asked about the red Camry. You owe him a Carfax — send it before this call. He referred you to Tom, so reciprocity is in your favor. His wife is pushing for the hybrid for the gas savings."
+}
 ```
 
-**Twilio Webhook URL:** `https://erfank.app.n8n.cloud/webhook/twilio/voice`
+**n8n Flow:**
+1. Webhook receives request
+2. Look up person by phone OR ID
+3. Parallel fetch: Deals, Tasks, Messages, Calls, Value Log, Life Events
+4. Aggregate into single object
+5. Send to Claude API for briefing generation
+6. Return complete profile
 
 ---
 
-## Workflow 8: Call Status Update
+### Workflow 2: Twilio Inbound Handler
 
-**Purpose:** Update call record when call ends.
+**Handles incoming calls and SMS.** Looks up person, generates briefing, pushes to app, logs interaction.
 
-### Setup Steps:
+**Endpoints:**
+- `POST /webhook/twilio/voice` — Incoming calls
+- `POST /webhook/twilio/sms` — Incoming texts
 
-1. Create new workflow, name it "Call Status"
-2. Add **Webhook** node:
-   - HTTP Method: POST
-   - Path: `/twilio/voice/status`
-
-3. Add **Airtable** node:
-   - Operation: Search
-   - Table: Calls
-   - Filter: `{Twilio SID} = '{{ $json.body.CallSid }}'`
-
-4. Add **Airtable** node:
-   - Operation: Update
-   - Table: Calls
-   - Fields:
-     - Duration: `{{ $json.body.CallDuration }}`
-     - Status: `{{ $json.body.CallStatus }}`
-     - Recording URL: `{{ $json.body.RecordingUrl }}`
-
-**Twilio Status Callback URL:** `https://erfank.app.n8n.cloud/webhook/twilio/voice/status`
-
----
-
-## Workflow 9: Get Calls
-
-**Purpose:** Fetch all calls for the call log.
-
-### Setup Steps:
-
-1. Create new workflow, name it "Get Calls"
-2. Add **Webhook** node:
-   - HTTP Method: GET
-   - Path: `/calls`
-
-3. Add **Airtable** node:
-   - Operation: Search
-   - Table: Calls
-   - Sort: Timestamp DESC
-   - Return All: false
-   - Limit: 50
-
-4. Add **Respond to Webhook** node
-
----
-
-## Workflow 10: Dashboard Stats
-
-**Purpose:** Get stats for dashboard.
-
-### Setup Steps:
-
-1. Create new workflow, name it "Dashboard Stats"
-2. Add **Webhook** node:
-   - HTTP Method: GET
-   - Path: `/dashboard/stats`
-
-3. Add multiple **Airtable** nodes in parallel:
-   - Calls today (filter by date)
-   - Messages today
-   - New leads (People with Status = New)
-   - Pending tasks
-
-4. Add **Code** node to combine:
-```javascript
-return [{
-  callsToday: $('Calls Today').first().json.length || 0,
-  textsToday: $('Messages Today').first().json.length || 0,
-  newLeads: $('New Leads').first().json.length || 0,
-  followups: $('Pending Tasks').first().json.length || 0
-}];
+**Call Flow:**
+```
+Phone rings
+    │
+    ▼
+Twilio hits n8n webhook
+    │
+    ▼
+n8n looks up caller by phone number
+    │
+    ├── Found? Get full person intel
+    │         Generate briefing
+    │         Push notification to app with briefing
+    │
+    └── Not found? Create new person record
+                   Push "Unknown caller" notification
+    │
+    ▼
+Return TwiML to forward call to your cell
+    │
+    ▼
+Log call to Airtable Calls table
 ```
 
-5. Add **Respond to Webhook** node
+**SMS Flow:**
+```
+Text arrives
+    │
+    ▼
+Twilio hits n8n webhook
+    │
+    ▼
+n8n looks up sender by phone
+    │
+    ├── Found? Get person intel
+    │         Log message to Airtable
+    │         Push notification with context
+    │
+    └── Not found? Create person
+                   Log message
+                   Push "New contact" notification
+    │
+    ▼
+Return empty TwiML (no auto-reply)
+```
 
 ---
 
-## Twilio Configuration
+### Workflow 3: Quick Capture API
 
-After creating the workflows, update your Twilio phone number settings:
+**Fast endpoints for logging after interactions.**
 
-1. Go to Twilio Console → Phone Numbers → +1 602-905-7670
+**Endpoints:**
 
-2. Voice & Fax:
-   - Configure with: Webhook
-   - A call comes in: `https://erfank.app.n8n.cloud/webhook/twilio/voice`
-   - HTTP: POST
-   - Call status callback URL: `https://erfank.app.n8n.cloud/webhook/twilio/voice/status`
+`POST /webhook/capture/note`
+```json
+{
+  "personId": "recXXX",
+  "note": "Discussed financing options. Wife wants hybrid."
+}
+```
 
-3. Messaging:
-   - Configure with: Webhook
-   - A message comes in: `https://erfank.app.n8n.cloud/webhook/twilio/sms`
-   - HTTP: POST
+`POST /webhook/capture/task`
+```json
+{
+  "personId": "recXXX",
+  "title": "Send Carfax",
+  "dueDate": "2024-01-28"
+}
+```
+
+`POST /webhook/capture/value`
+```json
+{
+  "personId": "recXXX",
+  "type": "given",  // or "received"
+  "description": "Connected him with my mechanic"
+}
+```
+
+`POST /webhook/send-sms`
+```json
+{
+  "personId": "recXXX",
+  "body": "Hey John, here's that Carfax you asked for..."
+}
+```
 
 ---
 
-## Testing
+## Airtable Table Relationships
 
-1. **Test Contacts:** Visit `https://erfank.app.n8n.cloud/webhook/people` in browser
-2. **Test SMS:** Send a text to +1 602-905-7670
-3. **Test Calls:** Call +1 602-905-7670
-4. **Test App:** Open app.friendlycarguy.com, login with PIN 685467
+```
+                         ┌─────────────┐
+                         │   PEOPLE    │
+                         │  (Central)  │
+                         └──────┬──────┘
+                                │
+        ┌───────────┬───────────┼───────────┬───────────┐
+        ▼           ▼           ▼           ▼           ▼
+   ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+   │  Calls  │ │Messages │ │  Tasks  │ │  Deals  │ │Value Log│
+   └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
+
+        ┌───────────┬───────────┬───────────┐
+        ▼           ▼           ▼           ▼
+   ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+   │  Life   │ │ Intro-  │ │Appoint- │ │ Oppor-  │
+   │ Events  │ │ ductions│ │  ments  │ │tunities │
+   └─────────┘ └─────────┘ └─────────┘ └─────────┘
+```
+
+Every table links back to People via a "Person" linked record field.
 
 ---
 
-## Security Notes
+## App Screens Updated
 
-- All webhooks should validate Authorization header in production
-- PIN should be hashed, not stored in plain text
-- Consider adding rate limiting on login attempts
-- Twilio webhooks can be validated using X-Twilio-Signature header
+### Incoming Call Screen
+When call comes in, app shows the **briefing** immediately:
+- Who they are (name, photo, how you met)
+- What they want (vehicle, budget, timeline)
+- What you last discussed
+- What you owe them (overdue tasks highlighted)
+- Personal context
+- AI-generated "what to know for this call"
+
+### Person Profile Screen
+Full view of a person with sections:
+- Header: Name, photo, status, source
+- Quick actions: Call, Text, Add Note, Add Task
+- Current opportunity/deal
+- Communication timeline (calls + texts merged)
+- Open tasks
+- Value ledger
+- Personal notes
+- Life events
+
+### Inbox
+Conversations sorted by recency. Each shows:
+- Person name
+- Last message preview
+- Time
+- Unread badge
+- **Mini-context:** "Looking for Camry · Hot lead"
+
+### Dashboard
+- Follow-ups due today
+- Overdue tasks (highlighted)
+- People you haven't contacted in 2+ weeks
+- Recent activity
+
+---
+
+## AI Integration (Claude)
+
+Claude is used for:
+
+1. **Briefing Generation**
+   - Input: All person data
+   - Output: 2-3 sentence "what you need to know right now"
+
+2. **Interaction Summarization**
+   - After calls, summarize the conversation
+   - Extract: promises made, personal details learned, next steps
+
+3. **Relationship Health**
+   - Weekly: "These 5 people need attention"
+   - Flag: "You promised X to Y, it's overdue"
+
+**Claude Prompt for Briefing:**
+```
+You are a sales assistant. Given this customer data, write a 2-3 sentence briefing for the salesperson who is about to talk to them. Focus on:
+1. What's most important right now (overdue tasks, pending deals)
+2. Personal context that builds rapport
+3. The trust balance (who owes who)
+
+Be concise. This will be read in 5 seconds before answering the phone.
+
+Customer Data:
+{json}
+```
+
+---
+
+## Implementation Steps
+
+### Phase 1: Core Infrastructure
+- [ ] Create Person Intelligence workflow in n8n
+- [ ] Test with sample Airtable data
+- [ ] Verify all linked records are fetched correctly
+
+### Phase 2: Twilio Integration
+- [ ] Create Inbound Call workflow
+- [ ] Create Inbound SMS workflow
+- [ ] Update Twilio webhooks
+- [ ] Test call forwarding + logging
+- [ ] Test SMS logging
+
+### Phase 3: App Updates
+- [ ] Update app to call Person Intelligence API
+- [ ] Build incoming call briefing screen
+- [ ] Build full person profile screen
+- [ ] Update inbox with mini-context
+
+### Phase 4: Quick Capture
+- [ ] Build capture endpoints in n8n
+- [ ] Add "Add Note" UI to app
+- [ ] Add "Add Task" UI to app
+- [ ] Add "Log Value" UI to app
+
+### Phase 5: AI Briefings
+- [ ] Integrate Claude API in n8n
+- [ ] Generate briefings on person lookup
+- [ ] Add briefing display to app
+
+### Phase 6: Proactive Intelligence
+- [ ] Daily digest: who needs attention
+- [ ] Overdue task alerts
+- [ ] Relationship health scoring
+
+---
+
+## Technical Reference
+
+**Airtable Base ID:** `appmxWdYfVSSHszgE`
+
+**n8n Base URL:** `https://erfank.app.n8n.cloud`
+
+**Twilio Number:** `+16029057670`
+
+**Personal Cell:** `+12027487308`
+
+**App URL:** `https://app.friendlycarguy.com`
+
+**App PIN:** `685467`
+
+---
+
+## What This Enables
+
+With this system, when John calls:
+
+1. Phone rings
+2. You glance at your screen
+3. You see: "John Smith — waiting on financing, you owe him a Carfax, his wife wants the hybrid, he referred you to Tom"
+4. You answer: "John! Hey, I was just about to send you that Carfax. How'd it go with the credit union?"
+
+**You sound like you have perfect memory. Because now you do.**

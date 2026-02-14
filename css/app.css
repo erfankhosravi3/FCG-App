@@ -142,7 +142,7 @@ body {
   color: var(--text-muted);
 }
 
-/* Conversation List */
+/* List Items (shared) */
 .conversation-list,
 .call-list,
 .contact-list {
@@ -243,21 +243,18 @@ body {
   height: 14px;
 }
 
-.call-type.incoming svg {
+.call-type.incoming svg,
+.call-type.inbound svg {
   color: var(--success);
 }
 
-.call-type.outgoing svg {
+.call-type.outgoing svg,
+.call-type.outbound svg {
   color: var(--accent);
 }
 
 .call-type.missed svg {
   color: var(--danger);
-}
-
-.call-duration {
-  font-size: 12px;
-  color: var(--text-muted);
 }
 
 /* Contact specific */
@@ -272,6 +269,7 @@ body {
   border-radius: 4px;
   background: var(--bg-tertiary);
   color: var(--text-secondary);
+  flex-shrink: 0;
 }
 
 .contact-status.hot {
@@ -282,6 +280,16 @@ body {
 .contact-status.new {
   background: rgba(212, 165, 116, 0.2);
   color: var(--accent);
+}
+
+.contact-status.warm {
+  background: rgba(251, 191, 36, 0.2);
+  color: var(--warning);
+}
+
+.contact-status.cold {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
 }
 
 /* Empty State */
@@ -307,7 +315,172 @@ body {
   color: var(--text-muted);
 }
 
-/* Dashboard */
+/* Loading State */
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+
+/* ============================================ */
+/* TODAY VIEW                                   */
+/* ============================================ */
+
+.today-list {
+  flex: 1;
+  padding: 0 0 16px;
+}
+
+.today-section {
+  margin-bottom: 8px;
+}
+
+.today-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 12px 16px 8px;
+}
+
+.today-section-title.overdue {
+  color: var(--danger);
+}
+
+.today-section-title.due-today {
+  color: var(--warning);
+}
+
+.today-section-title.hot {
+  color: var(--danger);
+}
+
+.today-section-title.new-lead {
+  color: var(--accent);
+}
+
+.today-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.today-item:active {
+  background: var(--bg-secondary);
+}
+
+.today-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.today-item-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.today-item-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Task Items */
+.task-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.task-item:active {
+  background: var(--bg-secondary);
+}
+
+.task-item.overdue {
+  border-left: 3px solid var(--danger);
+}
+
+.task-item.due-today {
+  border-left: 3px solid var(--warning);
+}
+
+.task-check {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.task-check svg {
+  width: 24px;
+  height: 24px;
+  color: var(--text-muted);
+  transition: color 0.2s;
+}
+
+.task-check:active svg {
+  color: var(--success);
+}
+
+.task-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-item-title {
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.task-item-sub {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Temperature Badges */
+.temp-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.temp-badge.hot {
+  background: rgba(248, 113, 113, 0.2);
+  color: var(--danger);
+}
+
+.temp-badge.warm {
+  background: rgba(251, 191, 36, 0.2);
+  color: var(--warning);
+}
+
+.temp-badge.cold {
+  background: rgba(96, 165, 250, 0.2);
+  color: #60a5fa;
+}
+
+.temp-badge.new {
+  background: rgba(212, 165, 116, 0.2);
+  color: var(--accent);
+}
+
+/* ============================================ */
+/* DASHBOARD                                    */
+/* ============================================ */
+
 .dashboard-header {
   display: flex;
   align-items: center;
@@ -423,7 +596,10 @@ body {
   color: var(--text-muted);
 }
 
-/* Bottom Navigation */
+/* ============================================ */
+/* BOTTOM NAVIGATION                            */
+/* ============================================ */
+
 .app-nav {
   height: var(--nav-height);
   padding-bottom: var(--safe-area-bottom);
@@ -449,12 +625,12 @@ body {
 }
 
 .nav-item svg {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
 }
 
 .nav-item span {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
 }
 
@@ -462,7 +638,10 @@ body {
   color: var(--accent);
 }
 
-/* Detail Overlays */
+/* ============================================ */
+/* DETAIL OVERLAYS                              */
+/* ============================================ */
+
 .conversation-detail,
 .contact-detail {
   position: fixed;
@@ -578,13 +757,6 @@ body {
   color: var(--bg-primary);
   align-self: flex-end;
   border-bottom-right-radius: 4px;
-}
-
-.message-time {
-  font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 4px;
-  text-align: center;
 }
 
 /* Message Input */
@@ -714,7 +886,231 @@ body {
   height: 20px;
 }
 
-/* Toast */
+/* ============================================ */
+/* MODALS                                       */
+/* ============================================ */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 200;
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--safe-area-bottom);
+}
+
+.modal-overlay.active {
+  display: flex;
+}
+
+.modal {
+  width: 100%;
+  max-width: 480px;
+  background: var(--bg-secondary);
+  border-radius: 16px 16px 0 0;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.modal-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.modal-close {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: var(--bg-tertiary);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+
+.modal-close svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Form Styles */
+.form-group {
+  padding: 12px 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: var(--accent);
+}
+
+.form-group input::placeholder {
+  color: var(--text-muted);
+}
+
+.form-group select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23666666' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+  padding-right: 40px;
+}
+
+.form-group select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.form-actions {
+  padding: 16px 20px 20px;
+}
+
+.btn-primary {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: var(--bg-primary);
+  border: none;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
+  background: var(--accent-light);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================ */
+/* INVENTORY VIEW                               */
+/* ============================================ */
+
+.inventory-grid {
+  flex: 1;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-content: start;
+}
+
+.inventory-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.inventory-card:active {
+  transform: scale(0.98);
+}
+
+.inventory-card-img {
+  width: 100%;
+  aspect-ratio: 4/3;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 32px;
+}
+
+.inventory-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.inventory-card-info {
+  padding: 10px 12px;
+}
+
+.inventory-card-title {
+  font-weight: 600;
+  font-size: 14px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.inventory-card-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* ============================================ */
+/* OFFLINE BANNER                               */
+/* ============================================ */
+
+.offline-banner {
+  background: var(--danger);
+  color: white;
+  text-align: center;
+  padding: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  display: none;
+}
+
+.offline-banner.show {
+  display: block;
+}
+
+/* ============================================ */
+/* TOAST                                        */
+/* ============================================ */
+
 .toast {
   position: fixed;
   bottom: calc(var(--nav-height) + 20px + var(--safe-area-bottom));
@@ -728,7 +1124,7 @@ body {
   font-weight: 500;
   opacity: 0;
   transition: transform 0.3s, opacity 0.3s;
-  z-index: 200;
+  z-index: 300;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
@@ -737,7 +1133,10 @@ body {
   opacity: 1;
 }
 
-/* Loading Spinner */
+/* ============================================ */
+/* LOADING SPINNER                              */
+/* ============================================ */
+
 .spinner {
   width: 24px;
   height: 24px;
@@ -751,7 +1150,10 @@ body {
   to { transform: rotate(360deg); }
 }
 
-/* Login Screen */
+/* ============================================ */
+/* LOGIN                                        */
+/* ============================================ */
+
 .login-screen {
   position: fixed;
   inset: 0;
