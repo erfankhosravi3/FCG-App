@@ -156,6 +156,9 @@ const App = {
     document.getElementById('composeBtn').addEventListener('click', () => {
       this.showAddContactModal();
     });
+    document.getElementById('addTaskBtn').addEventListener('click', () => {
+      this.showAddTaskModal();
+    });
   },
 
   switchView(viewId) {
@@ -170,24 +173,28 @@ const App = {
 
   async loadInitialData() {
     this.showLoadingState();
-    try {
-      const [contacts, conversations, calls, tasks] = await Promise.allSettled([
-        API.getContacts(),
-        API.getConversations(),
-        API.getCalls(),
-        API.getTasks(),
-      ]);
+    const [contacts, conversations, calls, tasks] = await Promise.allSettled([
+      API.getContacts(),
+      API.getConversations(),
+      API.getCalls(),
+      API.getTasks(),
+    ]);
 
-      this.contacts = contacts.status === 'fulfilled' ? (Array.isArray(contacts.value) ? contacts.value : contacts.value.records || []) : [];
-      this.conversations = conversations.status === 'fulfilled' ? (Array.isArray(conversations.value) ? conversations.value : conversations.value.records || []) : [];
-      this.calls = calls.status === 'fulfilled' ? (Array.isArray(calls.value) ? calls.value : calls.value.records || []) : [];
-      this.tasks = tasks.status === 'fulfilled' ? (Array.isArray(tasks.value) ? tasks.value : tasks.value.records || []) : [];
+    this.contacts = this.extractData(contacts);
+    this.conversations = this.extractData(conversations);
+    this.calls = this.extractData(calls);
+    this.tasks = this.extractData(tasks);
 
-      this.renderAll();
-    } catch (error) {
-      console.error('Failed to load data:', error);
-      this.showToast('Failed to load data');
-    }
+    this.renderAll();
+  },
+
+  extractData(result) {
+    if (result.status !== 'fulfilled') return [];
+    const v = result.value;
+    if (Array.isArray(v)) return v;
+    if (v && Array.isArray(v.records)) return v.records;
+    if (v && typeof v === 'object' && !Array.isArray(v)) return [];
+    return [];
   },
 
   showLoadingState() {
@@ -834,7 +841,11 @@ const App = {
     if (!modal) return;
     modal.classList.add('active');
     document.getElementById('addTaskForm').reset();
+    // Default due date to today
+    const today = new Date().toISOString().slice(0, 10);
+    document.getElementById('ft-date').value = today;
     if (contactId) document.querySelector('#addTaskForm input[name="taskContactId"]').value = contactId;
+    setTimeout(() => document.getElementById('ft-title').focus(), 300);
   },
 
   // ============================================

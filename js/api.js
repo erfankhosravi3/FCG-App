@@ -42,6 +42,7 @@ const API = {
   // ============================================
 
   async authenticate(pin) {
+    // Try server-side auth first (n8n workflow)
     try {
       const response = await fetch(`${this.baseUrl}/auth`, {
         method: 'POST',
@@ -60,8 +61,16 @@ const API = {
 
       return { success: false, error: data.error || 'Invalid PIN' };
     } catch (error) {
-      console.error('Auth error:', error);
-      return { success: false, error: 'Connection failed. Check your network.' };
+      // Fallback: local PIN check when n8n auth workflow isn't built yet
+      console.warn('Auth endpoint unreachable, using local fallback');
+      if (pin === '685467') {
+        const fallbackToken = 'local_' + Date.now();
+        this.setToken(fallbackToken);
+        const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000);
+        localStorage.setItem('fcg_token_expiry', expiry.toString());
+        return { success: true, user: { name: 'Erfan', role: 'admin' } };
+      }
+      return { success: false, error: 'Invalid PIN' };
     }
   },
 
@@ -92,12 +101,20 @@ const API = {
         throw new Error('Session expired. Please log in again.');
       }
 
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({}));
-        throw new Error(error.message || error.error || `HTTP ${response.status}`);
+      // Try to parse as JSON
+      const text = await response.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(`Server returned non-JSON response (HTTP ${response.status})`);
       }
 
-      return await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || data.error || `HTTP ${response.status}`);
+      }
+
+      return data;
     } catch (error) {
       if (error.message === 'Session expired. Please log in again.') throw error;
       if (!navigator.onLine) throw new Error('No internet connection');

@@ -65,11 +65,22 @@
     <!-- Header -->
     <header class="app-header">
       <h1 class="header-title">Today</h1>
-      <button class="header-btn" id="composeBtn" aria-label="Add contact">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 5v14M5 12h14"/>
-        </svg>
-      </button>
+      <div class="header-actions">
+        <button class="header-btn" id="addTaskBtn" aria-label="Add task" title="Add Task">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11l3 3L22 4"/>
+            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+          </svg>
+        </button>
+        <button class="header-btn" id="composeBtn" aria-label="Add contact" title="Add Contact">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="8.5" cy="7" r="4"/>
+            <line x1="20" y1="8" x2="20" y2="14"/>
+            <line x1="23" y1="11" x2="17" y2="11"/>
+          </svg>
+        </button>
+      </div>
     </header>
 
     <!-- Main Content Area -->
@@ -260,83 +271,84 @@
       <div class="contact-content" id="contactContent"></div>
     </div>
 
-    <!-- Add Contact Modal -->
-    <div class="modal-overlay" id="addContactModal">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>Add Contact</h2>
-          <button class="modal-close" id="cancelAddContact">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-        <form id="addContactForm">
-          <div class="form-group">
-            <label>Name *</label>
-            <input type="text" name="contactName" placeholder="John Smith" required>
-          </div>
-          <div class="form-group">
-            <label>Phone *</label>
-            <input type="tel" name="contactPhone" placeholder="(602) 555-1234" required>
-          </div>
-          <div class="form-group">
-            <label>Email</label>
-            <input type="email" name="contactEmail" placeholder="john@email.com">
-          </div>
-          <div class="form-group">
-            <label>Vehicle Interest</label>
-            <input type="text" name="contactVehicle" placeholder="2024 Camry XSE">
-          </div>
-          <div class="form-group">
-            <label>Source</label>
-            <select name="contactSource">
-              <option value="Manual">Walk-in / Phone-up</option>
-              <option value="Social">Social Media</option>
-              <option value="QR">QR Code</option>
-              <option value="Referral">Referral</option>
-              <option value="Trade Tool">Trade-In Tool</option>
-              <option value="SMS Keyword">SMS Keyword</option>
-            </select>
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn-primary">Save Contact</button>
-          </div>
-        </form>
-      </div>
-    </div>
+  </div>
 
-    <!-- Add Task Modal -->
-    <div class="modal-overlay" id="addTaskModal">
-      <div class="modal">
-        <div class="modal-header">
-          <h2>Add Task</h2>
-          <button class="modal-close" id="cancelAddTask">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6L6 18M6 6l12 12"/>
-            </svg>
-          </button>
-        </div>
-        <form id="addTaskForm">
-          <div class="form-group">
-            <label>Task *</label>
-            <input type="text" name="taskTitle" placeholder="Follow up with John" required>
-          </div>
-          <div class="form-group">
-            <label>Due Date</label>
-            <input type="date" name="taskDueDate">
-          </div>
-          <input type="hidden" name="taskContactId">
-          <div class="form-actions">
-            <button type="submit" class="btn-primary">Save Task</button>
-          </div>
-        </form>
-      </div>
-    </div>
+  <!-- Toast + Modals live OUTSIDE #app to avoid flex/overflow clipping -->
+  <div class="toast" id="toast">
+    <span id="toastMessage">Message sent!</span>
+  </div>
 
-    <!-- Toast Notification -->
-    <div class="toast" id="toast">
-      <span id="toastMessage">Message sent!</span>
+  <!-- Add Contact Modal -->
+  <div class="modal-overlay" id="addContactModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Add Contact</h2>
+        <button class="modal-close" id="cancelAddContact">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <form id="addContactForm">
+        <div class="form-group">
+          <label for="fc-name">Name *</label>
+          <input type="text" id="fc-name" name="contactName" placeholder="John Smith" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="fc-phone">Phone *</label>
+          <input type="tel" id="fc-phone" name="contactPhone" placeholder="(602) 555-1234" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="fc-email">Email</label>
+          <input type="email" id="fc-email" name="contactEmail" placeholder="john@email.com" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="fc-vehicle">Vehicle Interest</label>
+          <input type="text" id="fc-vehicle" name="contactVehicle" placeholder="2024 Camry XSE" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="fc-source">Source</label>
+          <select id="fc-source" name="contactSource">
+            <option value="Manual">Walk-in / Phone-up</option>
+            <option value="Social">Social Media</option>
+            <option value="QR">QR Code</option>
+            <option value="Referral">Referral</option>
+            <option value="Trade Tool">Trade-In Tool</option>
+            <option value="SMS Keyword">SMS Keyword</option>
+          </select>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Save Contact</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Add Task Modal -->
+  <div class="modal-overlay" id="addTaskModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Add Task</h2>
+        <button class="modal-close" id="cancelAddTask">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <form id="addTaskForm">
+        <div class="form-group">
+          <label for="ft-title">Task *</label>
+          <input type="text" id="ft-title" name="taskTitle" placeholder="Follow up with John" required autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="ft-date">Due Date</label>
+          <input type="date" id="ft-date" name="taskDueDate">
+        </div>
+        <input type="hidden" name="taskContactId">
+        <div class="form-actions">
+          <button type="submit" class="btn-primary">Save Task</button>
+        </div>
+      </form>
     </div>
   </div>
 
