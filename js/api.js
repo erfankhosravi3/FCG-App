@@ -281,19 +281,15 @@ const API = {
   // Power Dialer (W13, W14)
   // ============================================
 
-  async startDialerSession(listId) {
-    return this.post('/dialer/start', { listId });
+  async startDialer(contactIds) {
+    return this.post('/dialer/start', { contactIds });
   },
 
-  async dialNext(sessionId) {
-    return this.post('/dialer/next', { sessionId });
+  async logDialerResult(contactId, disposition, duration) {
+    return this.post('/dialer/status', { contactId, disposition, duration });
   },
 
-  async pauseDialer(sessionId) {
-    return this.post('/dialer/pause', { sessionId });
-  },
-
-  async stopDialer(sessionId) {
+  async stopDialerSession(sessionId) {
     return this.post('/dialer/stop', { sessionId });
   },
 

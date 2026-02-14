@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>What's Your Trade Worth? | Friendly Car Guy</title>
+  <meta name="description" content="Get a free, instant trade-in estimate for your vehicle. No spam, no hassle — just a fair number texted to you in minutes.">
+  <meta name="theme-color" content="#0a0a0a">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://app.friendlycarguy.com/trade.html">
+  <meta property="og:title" content="What's Your Trade Worth? | Friendly Car Guy">
+  <meta property="og:description" content="Get a free, instant trade-in estimate. No spam — just a fair number texted to you in 5 minutes.">
+  <meta property="og:site_name" content="Friendly Car Guy">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="What's Your Trade Worth? | Friendly Car Guy">
+  <meta name="twitter:description" content="Get a free, instant trade-in estimate. No spam — just a fair number texted to you in 5 minutes.">
+
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    :root {
+      --bg: #0a0a0a;
+      --bg-card: #141414;
+      --bg-input: #1a1a1a;
+      --accent: #d4a574;
+      --accent-hover: #e6c9a8;
+      --accent-glow: rgba(212, 165, 116, 0.15);
+      --text: #ffffff;
+      --text-secondary: #a0a0a0;
+      --text-muted: #666666;
+      --border: #2a2a2a;
+      --border-focus: #3a3a3a;
+      --success: #4ade80;
+      --radius: 14px;
+      --radius-sm: 10px;
+    }
+
+    html {
+      height: 100%;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      min-height: 100%;
+      padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
+    }
+
+    /* ── Layout ── */
+    .page-wrapper {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0 20px;
+      padding-bottom: 40px;
+    }
+
+    /* ── Header ── */
+    .header {
+      text-align: center;
+      padding: 48px 0 8px;
+    }
+
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 6px 16px 6px 8px;
+      margin-bottom: 24px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent);
+      letter-spacing: 0.02em;
+    }
+
+    .header-badge .logo-mark {
+      width: 28px;
+      height: 28px;
+      background: var(--accent);
+      color: var(--bg);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 11px;
+      letter-spacing: -0.02em;
+    }
+
+    .car-silhouette {
+      font-size: 48px;
+      margin-bottom: 16px;
+      display: block;
+      filter: grayscale(0.2);
+      animation: float 4s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .header h1 {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .header .subtitle {
+      font-size: 15px;
+      color: var(--text-secondary);
+      max-width: 300px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    /* ── Trust Bar ── */
+    .trust-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin: 20px 0 32px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .trust-bar svg {
+      width: 14px;
+      height: 14px;
+      color: var(--success);
+      flex-shrink: 0;
+    }
+
+    /* ── Form Card ── */
+    .form-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px 24px 32px;
+    }
+
+    .form-section-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+      margin-top: 28px;
+    }
+
+    .form-section-label:first-child {
+      margin-top: 0;
+    }
+
+    /* ── Input Groups ── */
+    .input-row {
+      display: flex;
+      gap: 12px;
+    }
+
+    .input-row .field {
+      flex: 1;
+    }
+
+    .field {
+      margin-bottom: 14px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .field input,
+    .field select {
+      width: 100%;
+      height: 48px;
+      padding: 0 16px;
+      background: var(--bg-input);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 16px; /* prevents iOS zoom */
+      font-weight: 400;
+      outline: none;
+      transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666666' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 40px;
+    }
+
+    .field input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .field input:focus,
+    .field select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+      background: #1e1e1e;
+    }
+
+    /* ── Condition Radios ── */
+    .condition-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .condition-option {
+      position: relative;
+    }
+
+    .condition-option input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .condition-option label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 46px;
+      background: var(--bg-input);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+      margin-bottom: 0;
+    }
+
+    .condition-option label .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      transition: background 0.2s ease;
+    }
+
+    .condition-option.excellent label .dot { background: #4ade80; }
+    .condition-option.good label .dot { background: #60a5fa; }
+    .condition-option.fair label .dot { background: #fbbf24; }
+    .condition-option.poor label .dot { background: #f87171; }
+
+    .condition-option input[type="radio"]:checked + label {
+      border-color: var(--accent);
+      background: rgba(212, 165, 116, 0.08);
+      color: var(--text);
+    }
+
+    .condition-option input[type="radio"]:focus-visible + label {
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .condition-option label:active {
+      transform: scale(0.97);
+    }
+
+    /* ── Divider ── */
+    .form-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 24px 0 4px;
+    }
+
+    /* ── Submit Button ── */
+    .submit-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      height: 54px;
+      margin-top: 24px;
+      background: var(--accent);
+      color: #0a0a0a;
+      border: none;
+      border-radius: var(--radius);
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+      outline: none;
+      letter-spacing: -0.01em;
+    }
+
+    .submit-btn:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 4px 24px rgba(212, 165, 116, 0.25);
+    }
+
+    .submit-btn:active {
+      transform: scale(0.98);
+    }
+
+    .submit-btn:focus-visible {
+      box-shadow: 0 0 0 3px var(--accent-glow), 0 4px 24px rgba(212, 165, 116, 0.2);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .submit-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* ── Loading Spinner ── */
+    .submit-btn .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2.5px solid rgba(10, 10, 10, 0.2);
+      border-top-color: #0a0a0a;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ── Success State ── */
+    .success-screen {
+      display: none;
+      text-align: center;
+      padding: 60px 20px 40px;
+    }
+
+    .success-screen.visible {
+      display: block;
+      animation: fadeUp 0.5s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .checkmark-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      background: rgba(74, 222, 128, 0.1);
+      border: 2px solid var(--success);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 24px;
+      animation: scaleIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes scaleIn {
+      from { transform: scale(0); }
+      to { transform: scale(1); }
+    }
+
+    .checkmark-circle svg {
+      width: 36px;
+      height: 36px;
+      color: var(--success);
+      stroke-dasharray: 50;
+      stroke-dashoffset: 50;
+      animation: drawCheck 0.5s ease 0.3s forwards;
+    }
+
+    @keyframes drawCheck {
+      to { stroke-dashoffset: 0; }
+    }
+
+    .success-screen h2 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.02em;
+    }
+
+    .success-screen p {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      max-width: 280px;
+      margin: 0 auto;
+    }
+
+    .success-screen .success-detail {
+      margin-top: 32px;
+      padding: 16px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+
+    .success-screen .success-detail span {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* ── Error State ── */
+    .error-toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #2a1515;
+      border: 1px solid rgba(248, 113, 113, 0.3);
+      color: #f87171;
+      padding: 12px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 100;
+      transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+      max-width: 90%;
+      text-align: center;
+    }
+
+    .error-toast.visible {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      padding: 40px 20px 24px;
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    .footer .dealer-name {
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+
+    /* ── Validation ── */
+    .field.error input,
+    .field.error select {
+      border-color: #f87171;
+    }
+
+    .field .error-msg {
+      font-size: 12px;
+      color: #f87171;
+      margin-top: 4px;
+      display: none;
+    }
+
+    .field.error .error-msg {
+      display: block;
+      animation: fadeIn 0.2s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* ── Responsive ── */
+    @media (min-width: 600px) {
+      .page-wrapper {
+        padding: 0 32px;
+        padding-bottom: 48px;
+      }
+
+      .header {
+        padding-top: 64px;
+      }
+
+      .header h1 {
+        font-size: 34px;
+      }
+
+      .form-card {
+        padding: 32px 32px 36px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="page-wrapper">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-badge">
+        <div class="logo-mark">FCG</div>
+        Friendly Car Guy
+      </div>
+      <span class="car-silhouette" role="img" aria-label="Car">&#x1F697;</span>
+      <h1>What's Your Trade Worth?</h1>
+      <p class="subtitle">Get a real number from a real person &mdash; not a robot lowball.</p>
+    </header>
+
+    <!-- Trust Bar -->
+    <div class="trust-bar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 12 15 16 10"/></svg>
+      Free, instant estimate. No spam. Text only.
+    </div>
+
+    <!-- Form -->
+    <div id="formCard" class="form-card">
+      <form id="tradeForm" novalidate>
+        <div class="form-section-label">Vehicle Details</div>
+
+        <div class="input-row">
+          <div class="field">
+            <label for="year">Year</label>
+            <select id="year" name="year" required>
+              <option value="" disabled selected>Year</option>
+              <option value="2026">2026</option>
+              <option value="2025">2025</option>
+              <option value="2024">2024</option>
+              <option value="2023">2023</option>
+              <option value="2022">2022</option>
+              <option value="2021">2021</option>
+              <option value="2020">2020</option>
+              <option value="2019">2019</option>
+              <option value="2018">2018</option>
+              <option value="2017">2017</option>
+              <option value="2016">2016</option>
+              <option value="2015">2015</option>
+            </select>
+            <div class="error-msg">Pick a year</div>
+          </div>
+          <div class="field">
+            <label for="make">Make</label>
+            <input type="text" id="make" name="make" placeholder="Toyota" required autocomplete="off">
+            <div class="error-msg">Required</div>
+          </div>
+        </div>
+
+        <div class="input-row">
+          <div class="field">
+            <label for="model">Model</label>
+            <input type="text" id="model" name="model" placeholder="Camry" required autocomplete="off">
+            <div class="error-msg">Required</div>
+          </div>
+          <div class="field">
+            <label for="mileage">Mileage</label>
+            <input type="number" id="mileage" name="mileage" placeholder="45,000" required inputmode="numeric" min="0">
+            <div class="error-msg">Required</div>
+          </div>
+        </div>
+
+        <label class="field-label" style="display:block;font-size:13px;font-weight:500;color:var(--text-secondary);margin-bottom:8px;">Condition</label>
+        <div class="condition-grid">
+          <div class="condition-option excellent">
+            <input type="radio" name="condition" id="condExcellent" value="Excellent" required>
+            <label for="condExcellent"><span class="dot"></span> Excellent</label>
+          </div>
+          <div class="condition-option good">
+            <input type="radio" name="condition" id="condGood" value="Good">
+            <label for="condGood"><span class="dot"></span> Good</label>
+          </div>
+          <div class="condition-option fair">
+            <input type="radio" name="condition" id="condFair" value="Fair">
+            <label for="condFair"><span class="dot"></span> Fair</label>
+          </div>
+          <div class="condition-option poor">
+            <input type="radio" name="condition" id="condPoor" value="Poor">
+            <label for="condPoor"><span class="dot"></span> Poor</label>
+          </div>
+        </div>
+
+        <div class="form-divider"></div>
+        <div class="form-section-label">Your Info</div>
+
+        <div class="field">
+          <label for="name">Your Name</label>
+          <input type="text" id="name" name="name" placeholder="First and last" required autocomplete="name">
+          <div class="error-msg">We need your name</div>
+        </div>
+
+        <div class="input-row">
+          <div class="field" style="flex:1.2;">
+            <label for="phone">Phone</label>
+            <input type="tel" id="phone" name="phone" placeholder="(602) 555-1234" required autocomplete="tel">
+            <div class="error-msg">Valid phone required</div>
+          </div>
+          <div class="field">
+            <label for="email">Email <span style="color:var(--text-muted);font-weight:400;">(optional)</span></label>
+            <input type="email" id="email" name="email" placeholder="you@email.com" autocomplete="email">
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Get My Estimate
+        </button>
+      </form>
+    </div>
+
+    <!-- Success Screen -->
+    <div id="successScreen" class="success-screen">
+      <div class="checkmark-circle">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 12 10 16 18 8"/>
+        </svg>
+      </div>
+      <h2>You're All Set!</h2>
+      <p>We'll text you an estimate within 5 minutes!</p>
+      <div class="success-detail">
+        Keep an eye on your phone for a text from <span>Friendly Car Guy</span>.
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <span class="dealer-name">Friendly Car Guy at Camelback Toyota</span><br>
+      Phoenix, AZ
+    </footer>
+  </div>
+
+  <!-- Error Toast -->
+  <div id="errorToast" class="error-toast">Something went wrong. Please try again.</div>
+
+  <script>
+    (function() {
+      'use strict';
+
+      const form = document.getElementById('tradeForm');
+      const formCard = document.getElementById('formCard');
+      const submitBtn = document.getElementById('submitBtn');
+      const successScreen = document.getElementById('successScreen');
+      const errorToast = document.getElementById('errorToast');
+
+      // ── Phone formatting ──
+      const phoneInput = document.getElementById('phone');
+      phoneInput.addEventListener('input', function() {
+        let digits = this.value.replace(/\D/g, '');
+        if (digits.length > 10) digits = digits.slice(0, 10);
+        if (digits.length >= 7) {
+          this.value = '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+        } else if (digits.length >= 4) {
+          this.value = '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+        } else if (digits.length > 0) {
+          this.value = '(' + digits;
+        }
+      });
+
+      // ── Mileage formatting ──
+      const mileageInput = document.getElementById('mileage');
+      mileageInput.addEventListener('blur', function() {
+        if (this.value) {
+          const num = parseInt(this.value, 10);
+          if (!isNaN(num) && num >= 0) {
+            this.value = num;
+          }
+        }
+      });
+
+      // ── Clear error on interaction ──
+      form.querySelectorAll('input, select').forEach(function(el) {
+        el.addEventListener('focus', function() {
+          this.closest('.field')?.classList.remove('error');
+        });
+      });
+      form.querySelectorAll('input[type="radio"]').forEach(function(el) {
+        el.addEventListener('change', function() {
+          // Clear any condition error visual
+          document.querySelectorAll('.condition-option label').forEach(function(label) {
+            label.style.borderColor = '';
+          });
+        });
+      });
+
+      // ── Validate ──
+      function validate() {
+        let valid = true;
+        const required = ['year', 'make', 'model', 'mileage', 'name', 'phone'];
+
+        required.forEach(function(id) {
+          const field = document.getElementById(id);
+          const wrapper = field.closest('.field');
+          if (!field.value.trim()) {
+            wrapper.classList.add('error');
+            valid = false;
+          } else {
+            wrapper.classList.remove('error');
+          }
+        });
+
+        // Phone: at least 10 digits
+        const phoneDigits = phoneInput.value.replace(/\D/g, '');
+        if (phoneDigits.length < 10) {
+          phoneInput.closest('.field').classList.add('error');
+          valid = false;
+        }
+
+        // Condition radio
+        const condition = form.querySelector('input[name="condition"]:checked');
+        if (!condition) {
+          valid = false;
+          // Subtle visual hint on condition options
+          document.querySelectorAll('.condition-option label').forEach(function(label) {
+            label.style.borderColor = '#f87171';
+          });
+        }
+
+        return valid;
+      }
+
+      // ── Show error toast ──
+      function showError(msg) {
+        errorToast.textContent = msg || 'Something went wrong. Please try again.';
+        errorToast.classList.add('visible');
+        setTimeout(function() {
+          errorToast.classList.remove('visible');
+        }, 4000);
+      }
+
+      // ── Submit ──
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        if (!validate()) {
+          // Scroll to first error
+          const firstError = form.querySelector('.field.error');
+          if (firstError) {
+            firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          return;
+        }
+
+        // Collect data
+        const data = {
+          year: document.getElementById('year').value,
+          make: document.getElementById('make').value.trim(),
+          model: document.getElementById('model').value.trim(),
+          mileage: document.getElementById('mileage').value.trim(),
+          condition: form.querySelector('input[name="condition"]:checked').value,
+          name: document.getElementById('name').value.trim(),
+          phone: phoneInput.value.trim(),
+          email: document.getElementById('email').value.trim() || ''
+        };
+
+        // Loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<div class="spinner"></div> Submitting...';
+
+        fetch('https://erfank.app.n8n.cloud/webhook/form/trade-in', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        })
+        .then(function(res) {
+          if (!res.ok) throw new Error('Network response was not ok');
+          return res.text();
+        })
+        .then(function() {
+          // Show success
+          formCard.style.display = 'none';
+          successScreen.classList.add('visible');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        })
+        .catch(function() {
+          showError('Something went wrong. Please try again.');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Get My Estimate';
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

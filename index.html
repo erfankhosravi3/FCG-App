@@ -87,6 +87,16 @@
     <main class="app-content">
       <!-- Today View (default) -->
       <section class="view active" id="todayView">
+        <div class="today-quick-actions">
+          <button class="quick-action-btn" id="goToDialerBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Power Dial
+          </button>
+          <button class="quick-action-btn" id="goToInventoryBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="3" width="15" height="13"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+            Inventory
+          </button>
+        </div>
         <div class="today-list" id="todayList">
           <div class="loading-state"><div class="spinner"></div></div>
         </div>
@@ -130,11 +140,87 @@
 
       <!-- Inventory View -->
       <section class="view" id="inventoryView">
+        <div class="inventory-header">
+          <button class="btn-add-car" id="addCarBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Add Car
+          </button>
+        </div>
         <div class="inventory-grid" id="inventoryGrid">
-          <div class="empty-state">
+          <div class="empty-state" style="grid-column: 1/-1;">
             <div class="empty-icon">&#128663;</div>
             <p>No inventory yet</p>
-            <small>Scan a VIN to add your first car</small>
+            <small>Tap "Add Car" to scan a VIN</small>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dialer View -->
+      <section class="view" id="dialerView">
+        <div class="dialer-container">
+          <!-- Idle State -->
+          <div class="dialer-idle" id="dialerIdle">
+            <div class="dialer-idle-icon">&#128222;</div>
+            <h2>Power Dialer</h2>
+            <p>Automatically dial through your follow-up list. Briefings load before each call.</p>
+            <div class="dialer-queue-info" id="dialerQueueInfo">
+              <div class="dialer-queue-stat">
+                <div class="dialer-queue-num" id="dialerQueueCount">0</div>
+                <div class="dialer-queue-label">In Queue</div>
+              </div>
+              <div class="dialer-queue-stat">
+                <div class="dialer-queue-num" id="dialerOverdueCount">0</div>
+                <div class="dialer-queue-label">Overdue</div>
+              </div>
+              <div class="dialer-queue-stat">
+                <div class="dialer-queue-num" id="dialerHotCount">0</div>
+                <div class="dialer-queue-label">Hot Leads</div>
+              </div>
+            </div>
+            <button class="dialer-start-btn" id="dialerStartBtn">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+              Start Dialing
+            </button>
+          </div>
+          <!-- Active State -->
+          <div class="dialer-active hidden" id="dialerActive">
+            <div class="dialer-progress" id="dialerProgress">
+              <span id="dialerCurrent">0</span> / <span id="dialerTotal">0</span> dialed
+            </div>
+            <div class="dialer-contact-card" id="dialerContactCard">
+              <div class="dialer-avatar" id="dialerAvatar">?</div>
+              <div class="dialer-contact-name" id="dialerContactName">Loading...</div>
+              <div class="dialer-contact-sub" id="dialerContactSub"></div>
+            </div>
+            <div class="dialer-briefing" id="dialerBriefing">
+              <div class="briefing-text">Briefing will load here...</div>
+            </div>
+            <div class="dialer-timer" id="dialerTimer">0:00</div>
+            <div class="dialer-disposition" id="dialerDisposition">
+              <button class="dispo-btn connected" data-dispo="connected">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                Connected
+              </button>
+              <button class="dispo-btn voicemail" data-dispo="voicemail">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="11.5" r="4.5"/><circle cx="18.5" cy="11.5" r="4.5"/><line x1="5.5" y1="16" x2="18.5" y2="16"/></svg>
+                VM
+              </button>
+              <button class="dispo-btn no-answer" data-dispo="no-answer">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                No Answer
+              </button>
+              <button class="dispo-btn skip" data-dispo="skip">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+                Skip
+              </button>
+            </div>
+            <button class="dialer-stop-btn" id="dialerStopBtn">End Session</button>
+          </div>
+          <!-- Session Summary -->
+          <div class="dialer-summary hidden" id="dialerSummary">
+            <h2>Session Complete</h2>
+            <div class="dialer-summary-stats" id="dialerSummaryStats"></div>
+            <button class="btn-primary" id="dialerDoneBtn" style="margin-top: 24px;">Done</button>
           </div>
         </div>
       </section>
@@ -249,6 +335,27 @@
       </div>
     </div>
 
+    <!-- Call Detail (overlay) -->
+    <div class="call-detail" id="callDetail">
+      <header class="detail-header">
+        <button class="back-btn" id="backFromCall">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+        </button>
+        <div class="detail-info">
+          <h2 id="callDetailName">Call</h2>
+          <small id="callDetailMeta">Incoming · 3:45</small>
+        </div>
+        <button class="call-btn" id="callBackFromDetail">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+          </svg>
+        </button>
+      </header>
+      <div class="call-detail-content" id="callDetailContent"></div>
+    </div>
+
     <!-- Contact Detail (overlay) -->
     <div class="contact-detail" id="contactDetail">
       <header class="detail-header">
@@ -349,6 +456,54 @@
           <button type="submit" class="btn-primary">Save Task</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Add Car Modal -->
+  <div class="modal-overlay" id="addCarModal">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Add Car</h2>
+        <button class="modal-close" id="cancelAddCar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <form id="addCarForm">
+        <div class="form-group">
+          <label for="fv-vin">VIN *</label>
+          <input type="text" id="fv-vin" name="carVin" placeholder="4T1G11AK5RU..." maxlength="17" required autocomplete="off" style="text-transform: uppercase; font-family: monospace; letter-spacing: 1px;">
+        </div>
+        <div id="vinDecodeResult" class="vin-decode-result"></div>
+        <div class="form-group">
+          <label for="fv-color">Color</label>
+          <input type="text" id="fv-color" name="carColor" placeholder="Supersonic Red" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label for="fv-price">Price</label>
+          <input type="number" id="fv-price" name="carPrice" placeholder="32000" autocomplete="off">
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="vinDecodeBtn" style="margin-bottom: 8px;">Decode VIN</button>
+          <button type="submit" class="btn-primary" id="saveCarBtn" disabled>Save to Inventory</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Inventory Detail Overlay -->
+  <div class="modal-overlay" id="inventoryDetailModal">
+    <div class="modal" style="max-height: 95vh;">
+      <div class="modal-header">
+        <h2 id="invDetailTitle">Vehicle</h2>
+        <button class="modal-close" id="closeInvDetail">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 6L6 18M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div id="invDetailContent" class="inv-detail-content"></div>
     </div>
   </div>
 

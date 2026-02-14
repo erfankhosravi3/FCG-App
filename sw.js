@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fcg-v3';
+const CACHE_NAME = 'fcg-v5';
 const ASSETS = [
   '/',
   '/index.html',
